@@ -1,3 +1,5 @@
+import static java.sql.Connection.*
+
 dataSource {
     pooled = true
     jmxExport = true
@@ -32,7 +34,7 @@ environments {
             logSql = false
             //noinspection GroovyAssignabilityCheck
             properties {
-                defaultTransactionIsolation = Connection.TRANSACTION_READ_UNCOMMITTED
+                defaultTransactionIsolation = TRANSACTION_READ_UNCOMMITTED
                 initialSize = 2
                 maxActive = 5
                 minEvictableIdleTimeMillis = 1800000
@@ -63,7 +65,7 @@ environments {
             logSql = false
             //noinspection GroovyAssignabilityCheck
             properties {
-                defaultTransactionIsolation = Connection.TRANSACTION_READ_UNCOMMITTED
+                defaultTransactionIsolation = TRANSACTION_READ_UNCOMMITTED
                 initialSize = 2
                 maxActive = 10
                 minEvictableIdleTimeMillis = 1800000
