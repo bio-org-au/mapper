@@ -16,6 +16,8 @@
 
 package au.org.biodiversity.nsl
 
+import org.apache.shiro.SecurityUtils
+
 import java.sql.Timestamp
 
 class Identifier {
@@ -48,6 +50,16 @@ class Identifier {
         reasonDeleted nullable: true
         updatedAt nullable: true
         updatedBy nullable: true
+    }
+
+    def beforeInsert() {
+        updatedAt = new Timestamp(System.currentTimeMillis())
+        updatedBy = SecurityUtils.subject?.getPrincipal()?.toString()
+    }
+
+    def beforeUpdate() {
+        updatedAt = new Timestamp(System.currentTimeMillis())
+        updatedBy = SecurityUtils.subject?.getPrincipal()?.toString()
     }
 
     @Override

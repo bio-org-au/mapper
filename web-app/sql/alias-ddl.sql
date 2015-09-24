@@ -1,11 +1,9 @@
---create schema mapper;
 
+alter table mapper.identifier_identities
+drop constraint FK_mf2dsc2dxvsa9mlximsct7uau;
 
-alter table if exists mapper.identifier_identities
-drop constraint if exists FK_mf2dsc2dxvsa9mlximsct7uau;
-
-alter table if exists mapper.identifier_identities
-drop constraint if exists FK_ojfilkcwskdvvbggwsnachry2;
+alter table mapper.identifier_identities
+drop constraint FK_ojfilkcwskdvvbggwsnachry2;
 
 drop table if exists mapper.identifier cascade;
 
@@ -18,9 +16,13 @@ create sequence mapper.mapper_sequence;
 
 create table mapper.identifier (
   id int8 default nextval('mapper.mapper_sequence') not null,
+  deleted boolean not null,
   id_number int8 not null,
   name_space varchar(255) not null,
   object_type varchar(255) not null,
+  reason_deleted varchar(255),
+  updated_at timestamp with time zone,
+  updated_by varchar(255),
   primary key (id)
 );
 
@@ -32,7 +34,9 @@ create table mapper.identifier_identities (
 
 create table mapper.match (
   id int8 default nextval('mapper.mapper_sequence') not null,
-  deprecated boolean not null DEFAULT FALSE ,
+  deprecated boolean not null,
+  updated_at timestamp with time zone,
+  updated_by varchar(255),
   uri varchar(255) not null,
   primary key (id)
 );
