@@ -18,7 +18,7 @@ class UrlMappings {
 
 	static mappings = {
 
-        "/boa/**"(controller: 'broker', action: 'index', method: "GET")
+        "/**"(controller: 'broker', action: 'index', method: "GET")
 
         "/links/$nameSpace/$objectType/$idNumber"(controller: 'broker', action: 'links', method: "GET")
 

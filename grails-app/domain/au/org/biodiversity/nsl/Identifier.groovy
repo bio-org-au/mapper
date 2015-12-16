@@ -29,6 +29,7 @@ class Identifier {
     String reasonDeleted
     Timestamp updatedAt
     String updatedBy
+    Match preferredUri
 
     static hasMany = [identities: Match]
 
@@ -42,7 +43,6 @@ class Identifier {
         objectType  index: 'identifier_index'
         idNumber index: 'identifier_index'
         updatedAt sqlType: 'timestamp with time zone'
-
     }
 
     static constraints = {
@@ -50,6 +50,7 @@ class Identifier {
         reasonDeleted nullable: true
         updatedAt nullable: true
         updatedBy nullable: true
+        preferredUri nullable: true
     }
 
     def beforeInsert() {

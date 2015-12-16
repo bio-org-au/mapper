@@ -29,6 +29,7 @@ class Match {
 
     static belongsTo = Identifier
     static hasMany = [identifiers: Identifier]
+    static mappedBy = [identifiers: "identities"]
 
     static mapping = {
         version false

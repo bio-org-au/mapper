@@ -43,7 +43,7 @@ class MappingService {
     List<Map> findMatchingLinks(Identifier ident) {
         Match preferred = getPreferredLink(ident)
         ident.identities.findAll { Match m -> !m.deprecated }.collect { Match m ->
-            [link: makeResolverLink(m), resourceCount: m.identifiers.size(), preferred: m == preferred]
+            [link: makeResolverLink(m), resourceCount: m.identifiers.size(), preferred: m.id == preferred.id]
         }.sort { a,b ->
             if( a.resourceCount == b.resourceCount) {
                 a.link <=> b.link
@@ -54,6 +54,9 @@ class MappingService {
     }
 
     Match getPreferredLink(Identifier identifier) {
+        if(identifier.preferredUri) {
+            return identifier.preferredUri
+        }
         String prefUrnStr = identifier.toUrn()
         Match preferred = identifier.identities.find { Match m -> m.uri == prefUrnStr }
         if (!preferred) {
@@ -66,7 +69,9 @@ class MappingService {
                         m.identifiers.first() == identifier
             }
         }
-        return preferred
+        identifier.preferredUri = preferred
+        identifier.save()
+        return preferred.refresh()
     }
 
     private String encodeParts(String uri) {

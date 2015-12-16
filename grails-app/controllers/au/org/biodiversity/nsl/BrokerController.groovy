@@ -28,6 +28,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND
 class BrokerController {
 
     def mappingService
+    def grailsApplication
 
     static allowedMethods = ['GET', 'POST']
 
@@ -36,7 +37,14 @@ class BrokerController {
         requested = requested.decodeURL()
 
         List<String> parts = requested.split('/api/')
-        String matchUri = parts[0].replaceAll('^.*/boa/', '')
+        String contextPath = "$request.contextPath/"
+        String contextExtension = grailsApplication.config.mapper.contextExtension
+        if(contextExtension) {
+            contextPath += "$contextExtension/"
+        }
+        String matchUri = parts[0] - contextPath
+        log.debug "matching: $matchUri"
+
         String api = null
         if (parts.size() == 2) {
             api = "/api/${parts[1]}"
