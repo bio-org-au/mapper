@@ -43,7 +43,7 @@ class BrokerController {
             contextPath += "$contextExtension/"
         }
         String matchUri = parts[0] - contextPath
-        log.debug "matching: $matchUri"
+        log.debug "matching: $matchUri from contextPath $contextPath"
 
         String api = null
         if (parts.size() == 2) {
