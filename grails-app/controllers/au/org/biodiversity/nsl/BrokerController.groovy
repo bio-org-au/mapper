@@ -37,13 +37,7 @@ class BrokerController {
         requested = requested.decodeURL()
 
         List<String> parts = requested.split('/api/')
-        String contextPath = "$request.contextPath/"
-        String contextExtension = grailsApplication.config.mapper.contextExtension
-        if(contextExtension) {
-            contextPath += "$contextExtension/"
-        }
-        String matchUri = parts[0] - contextPath
-        log.debug "matching: $matchUri from contextPath $contextPath"
+        String matchUri = mappingService.extractMatchStringFromURI(parts[0])
 
         String api = null
         if (parts.size() == 2) {
@@ -135,7 +129,8 @@ class BrokerController {
     }
 
     def getCurrentIdentity(String uri) {
-        String requested = uri.replaceAll("^.*/boa/", '')
+
+        String requested = mappingService.extractMatchStringFromURI(uri.decodeURL())
 
         Match match = Match.findByUri(requested)
         if (match) {

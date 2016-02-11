@@ -18,10 +18,13 @@ package au.org.biodiversity.nsl
 
 import grails.transaction.Transactional
 
-@Transactional
 class MappingService {
 
     def grailsApplication
+
+    // We cache the host/context prefix length to try and speed up the matching of URLs to identity
+    private Integer fullPrefixLength = null
+    private Integer relPrefixLength = null
 
     String makeCurrentLink(Identifier ident, String format = 'html') {
         String shardHostname = grailsApplication.config.mapper.shards[ident.nameSpace].baseURL
@@ -53,6 +56,7 @@ class MappingService {
         }
     }
 
+    @Transactional
     Match getPreferredLink(Identifier identifier) {
         if(identifier.preferredUri) {
             return identifier.preferredUri
@@ -76,5 +80,46 @@ class MappingService {
 
     private String encodeParts(String uri) {
         uri.split('/').collect{ it.encodeAsURL() }.join('/').replaceAll(/\+/, '%20')
+    }
+
+    private int getFullPrefixLength() {
+        if(!fullPrefixLength) {
+            String prefix = grailsApplication.config.mapper.resolverURL + '/'
+            String contextExtension = grailsApplication.config.mapper.contextExtension
+
+            if(contextExtension) {
+                prefix += "$contextExtension/"
+            }
+            fullPrefixLength = prefix.size()
+        }
+        return fullPrefixLength
+    }
+
+    private int getRelPrefixLength() {
+        if(!relPrefixLength) {
+            String prefix = grailsApplication.config.mapper.resolverURL + '/'
+            String contextExtension = grailsApplication.config.mapper.contextExtension
+
+            if(contextExtension) {
+                prefix += "$contextExtension/"
+            }
+            prefix = prefix.replaceAll("^http://[^/]*", '')
+            relPrefixLength = prefix.size()
+        }
+        return relPrefixLength
+    }
+
+    String extractMatchStringFromURI(String uri) {
+        String match
+
+        if(uri.startsWith('http')) {
+            match = uri.substring(getFullPrefixLength())
+        } else {
+            match = uri.substring(getRelPrefixLength())
+        }
+
+        log.debug "URI: $uri -> $match"
+
+        return match
     }
 }
