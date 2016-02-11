@@ -98,6 +98,9 @@ grails.hibernate.osiv.readonly = false
 
 grails.gorm.failOnError = true
 
+cors.url.pattern = '/*'
+cors.headers = ['Access-Control-Allow-Origin': '*']
+
 environments {
     development {
         grails.logging.jul.usebridge = true
