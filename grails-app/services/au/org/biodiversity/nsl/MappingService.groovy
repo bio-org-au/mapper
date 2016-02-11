@@ -91,6 +91,7 @@ class MappingService {
                 prefix += "$contextExtension/"
             }
             fullPrefixLength = prefix.size()
+            log.info "full prefix length set to $fullPrefixLength"
         }
         return fullPrefixLength
     }
@@ -105,13 +106,16 @@ class MappingService {
             }
             prefix = prefix.replaceAll("^http://[^/]*", '')
             relPrefixLength = prefix.size()
+            log.info "relative prefix length set to $relPrefixLength"
+
         }
         return relPrefixLength
     }
 
     String extractMatchStringFromURI(String uri) {
-        String match
+        log.info "extracting match from uri"
 
+        String match
         if(uri.startsWith('http')) {
             match = uri.substring(getFullPrefixLength())
         } else {
