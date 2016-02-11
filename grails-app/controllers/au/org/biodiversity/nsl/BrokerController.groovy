@@ -33,6 +33,8 @@ class BrokerController {
     static allowedMethods = ['GET', 'POST']
 
     def index() {
+        response.addHeader('Access-Control-Allow-Origin', '*') // unconditionally allow anything to talk to this service
+
         String requested = (WebUtils.getForwardURI(request) ?: request.getAttribute('javax.servlet.error.request_uri'))
         requested = requested.decodeURL()
 
@@ -148,6 +150,8 @@ class BrokerController {
     }
 
     def links(String nameSpace, String objectType, Long idNumber) {
+        response.addHeader('Access-Control-Allow-Origin', '*') // unconditionally allow anything to talk to this service
+
         Identifier identifier = Identifier.findByNameSpaceAndObjectTypeAndIdNumber(nameSpace, objectType, idNumber)
 
         if (identifier) {
