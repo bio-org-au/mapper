@@ -16,6 +16,7 @@
 
 package au.org.biodiversity.nsl
 
+import grails.util.Environment
 import org.apache.shiro.SecurityUtils
 
 import java.sql.Timestamp
@@ -40,13 +41,15 @@ class Identifier {
         deleted defaultvalue: "false"
 
         nameSpace index: 'identifier_index'
-        objectType  index: 'identifier_index'
+        objectType index: 'identifier_index'
         idNumber index: 'identifier_index'
-        updatedAt sqlType: 'timestamp with time zone'
+        if (Environment.current != Environment.TEST) { // test uses H2 so it doesn't understand this
+            updatedAt sqlType: 'timestamp with time zone'
+        }
     }
 
     static constraints = {
-        nameSpace unique: ['objectType','idNumber']
+        nameSpace unique: ['objectType', 'idNumber']
         reasonDeleted nullable: true
         updatedAt nullable: true
         updatedBy nullable: true
@@ -71,4 +74,5 @@ class Identifier {
     String toUrn() {
         "$objectType/$nameSpace/$idNumber"
     }
+
 }

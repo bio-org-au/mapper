@@ -24,10 +24,14 @@ import org.springframework.validation.FieldError
 
 import javax.servlet.ServletOutputStream
 
+import static org.springframework.http.HttpStatus.CONFLICT
+import static org.springframework.http.HttpStatus.FORBIDDEN
 import static org.springframework.http.HttpStatus.NOT_FOUND
 
 @Transactional
 class AdminController {
+
+    def grailsApplication
 
     @SuppressWarnings("GroovyUnusedDeclaration")
     static responseFormats = ['json']
@@ -214,6 +218,83 @@ class AdminController {
             response.outputStream.flush()
             response.outputStream.close()
         }
+    }
+
+    @RequiresRoles('admin')
+    def addNslShard(String name, String baseURL) {
+        if (grailsApplication.config.mapper.shards[name]) {
+            String error = "Add NSL Shard: $name already exists"
+            log.error error
+            respond(error, status: CONFLICT)
+        } else {
+            // update the running config
+            grailsApplication.config.mapper.shards.put(name, [
+                    baseURL: (baseURL),
+                    service: [
+                            html: { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            json: { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            xml : { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            rdf : { ident ->
+                                String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
+                                "sparql/?query=${url}"
+                            }
+                    ]
+            ])
+            //now edit the config file to add the shard
+            //note we can't use config object to output config because of closures
+            List<String> configLocations = grailsApplication.config.grails.config.locations
+            if (configLocations.size() == 1) {
+                URL configFileURL = new URL(configLocations[0] as String)
+                File configFile = new File(configFileURL.file)
+                String config = configFile.text
+                int shardEnd = getShardEnd(config)
+                String editedConfig = config.substring(0, shardEnd) + makeShardString(name, baseURL) + config.substring(shardEnd)
+                configFile.write(editedConfig)
+            }
+        }
+    }
+
+    private static GString makeShardString(String name, String baseURL) {
+        return """,
+$name: [
+        baseURL: ('$baseURL'),
+        service: [
+                html: { ident ->
+                    "services/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}"
+                },
+                json: { ident ->
+                    "services/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}"
+                },
+                xml : { ident ->
+                    "services/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}"
+                },
+                rdf : { ident ->
+                    String url = "DESCRIBE <http://biodiversity.org.au/boa/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}>".encodeAsURL()
+                    "sparql/?query=\${url}"
+                }
+        ]
+]"""
+    }
+
+    private static int getShardEnd(String config) {
+        int shardStart = config.indexOf('[', config.lastIndexOf('shards'))
+        int bracketCount = 0
+        int shardEnd = config.findIndexOf(shardStart) { character ->
+            if (character == '[') {
+                ++bracketCount
+            }
+            if (character == ']') {
+                --bracketCount
+            }
+            return bracketCount == 0
+        }
+        return shardEnd
     }
 
     private static Identifier exists(String nameSpace, String objectType, Long idNumber) {

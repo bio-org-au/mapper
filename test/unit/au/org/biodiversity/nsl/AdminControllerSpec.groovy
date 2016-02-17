@@ -16,18 +16,36 @@
 
 package au.org.biodiversity.nsl
 
-import grails.test.mixin.Mock
 import grails.test.mixin.TestFor
+import grails.test.mixin.TestMixin
+import grails.test.mixin.gorm.Domain
+import grails.test.mixin.hibernate.HibernateTestMixin
+import org.apache.shiro.SecurityUtils
+import org.apache.shiro.subject.Subject
+import org.apache.shiro.util.ThreadContext
 import spock.lang.Specification
 
 /**
  * See the API for {@link grails.test.mixin.web.ControllerUnitTestMixin} for usage instructions
  */
 @TestFor(AdminController)
-@Mock([Identifier, Match])
+@TestMixin(HibernateTestMixin)
+@Domain([Identifier, Match])
 class AdminControllerSpec extends Specification {
 
     def setup() {
+
+        def subject = [getPrincipal   : { "iamauser" },
+                       isAuthenticated: { true }
+        ] as Subject
+
+        ThreadContext.put(ThreadContext.SECURITY_MANAGER_KEY,
+                [getSubject: { subject }] as SecurityManager)
+
+        SecurityUtils.metaClass.static.getSubject = { subject }
+
+        Match.deleteAll(Match.list())
+        Identifier.deleteAll((Identifier.list()))
     }
 
     def cleanup() {
@@ -52,11 +70,10 @@ class AdminControllerSpec extends Specification {
 
         i1.nameSpace == 'apni'
         i1.objectType == 'name'
-        i1.idNumber == 12345
+        i1.idNumber == 12345l
         i1.identities.size() == 1
         m1.uri == 'name/apni/12345'
         m1.identifiers.size() == 1
-
 
         when: "we try to add the same identifier it fails"
         response.reset()
@@ -95,14 +112,14 @@ class AdminControllerSpec extends Specification {
         then:
         i5.nameSpace == 'apni'
         i5.objectType == 'name'
-        i5.idNumber == 12346
+        i5.idNumber == 12346l
         m4.uri == 'name/apni/12346'
 
     }
 
     void "test add URI"() {
         when: "we add a unique uri to an identifier it should work"
-        controller.addIdentifier('apni', 'name', 12345)
+        controller.addIdentifier('apni', 'name', 1)
 
         then:
         response.text.contains('Identity saved with default uri.')
@@ -111,7 +128,7 @@ class AdminControllerSpec extends Specification {
 
         when:
         response.reset()
-        controller.addURI('apni', 'name', 12345,'fred')
+        controller.addURI('apni', 'name', 1, 'fred')
 
         println response.text
 
@@ -120,16 +137,17 @@ class AdminControllerSpec extends Specification {
         Match.count() == 2
 
         when:
-        Match m = Match.get(2)
+        Match m = Match.findByUriLike('fred')
 
         then:
+        m != null
         m.uri == 'fred'
         m.identifiers.size() == 1
-        m.identifiers.first().id == 1
+        m.identifiers.first().idNumber == 1l
 
         when: "we try to add the same uri again it won't work"
         response.reset()
-        controller.addURI('apni', 'name', 12345,'fred')
+        controller.addURI('apni', 'name', 1, 'fred')
 
         println response.text
 
@@ -159,32 +177,40 @@ class AdminControllerSpec extends Specification {
         controller.addIdentityToURI('apni', 'name', 23, 'one')
 
         println response.text
+        i1.refresh()
+        i2.refresh()
+        m1.refresh()
+        m2.refresh()
 
         then:
         response.text.contains('URI linked with identity.')
-        i1.identities.size() == 1
-        m1.identifiers.size() == 1
-        i1.identities.first() == m1
-        m1.identifiers.first() == i1
-        i2.identities == null
-        m2.identifiers == null
+        i1.identities?.size() == 1
+        m1.identifiers?.size() == 1
+        i1.identities?.first() == m1
+        m1.identifiers?.first() == i1
+        i2.identities?.empty
+        m2.identifiers?.empty
 
         when:
         response.reset()
 
         controller.addIdentityToURI('apni', 'name', 23, 'two')
         println response.text
+        i1.refresh()
+        i2.refresh()
+        m1.refresh()
+        m2.refresh()
 
         then:
         response.text.contains('URI linked with identity.')
-        i1.identities.size() == 2
+        i1.identities?.size() == 2
         m1.identifiers.size() == 1
         m2.identifiers.size() == 1
-        i1.identities.contains(m1)
-        i1.identities.contains(m2)
+        i1.identities?.contains(m1)
+        i1.identities?.contains(m2)
         m1.identifiers.first() == i1
         m2.identifiers.first() == i1
-        i2.identities == null
+        i2.identities?.empty
 
         when: "the identity doesn't exist return an error"
         response.reset()
@@ -193,7 +219,7 @@ class AdminControllerSpec extends Specification {
         println response.text
 
         then:
-        response.text.contains("Identifier doesn\\'t exist.")
+        response.text.contains("Identifier doesn't exist.")
 
         when: "the uri doesn't exist return an error"
         response.reset()
@@ -202,7 +228,102 @@ class AdminControllerSpec extends Specification {
         println response.text
 
         then:
-        response.text.contains("URI doesn\\'t exist.")
+        response.text.contains("URI doesn't exist.")
 
+    }
+
+    void "add NSL Shard should update config"() {
+        when: "we have a mapper config and add a shard"
+        controller.grailsApplication = [config: makeAConfig()]
+        controller.addNslShard('blah', 'http://blahg.org')
+
+        then: "the blah shard is added to the running config"
+        println controller.grailsApplication.config
+        controller.grailsApplication.config.mapper.shards.containsKey('blah')
+        controller.grailsApplication.config.mapper.shards.blah.service.html([objectType: 'name', nameSpace: 'fred', idNumber: 2345]) == 'services/name/fred/2345'
+
+        when: "we re parse the config file"
+        ConfigObject config = slurpTest()
+
+        then: "it works and still has the blah config in it"
+        config.mapper.shards.containsKey('blah')
+        config.mapper.shards.blah.service.html([objectType: 'name', nameSpace: 'fred', idNumber: 2345]) == 'services/name/fred/2345'
+    }
+
+    private static ConfigObject slurpTest() {
+        ConfigSlurper slurper = new ConfigSlurper('test')
+        URL configFileURL = new URL("file:test-nsl-mapper-config.groovy")
+        return slurper.parse(configFileURL)
+    }
+
+    private static ConfigObject makeAConfig() {
+        ConfigSlurper slurper = new ConfigSlurper('test')
+        String configString = '''
+grails.config.locations = ["file:test-nsl-mapper-config.groovy"]
+
+grails.serverURL = 'http://localhost:7070/nsl-mapper\'
+
+mapper {
+    resolverURL = 'http://localhost:7070/nsl-mapper/boa\'
+    contextExtension = 'boa' //extension to the context path (after nsl-mapper).
+
+    shards = [
+            apni   : [
+                    baseURL: 'http://localhost:8080',
+                    service: [
+                            html: { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            json: { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            xml : { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            rdf : { ident ->
+                                String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
+                                "sparql/?query=${url}"
+                            }
+                    ]
+            ],
+            ausmoss: [
+                    baseURL: 'http://localhost:8080',
+                    service: [
+                            html: { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            json: { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            xml : { ident ->
+                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+                            },
+                            rdf : { ident ->
+                                String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
+                                "sparql/?query=${url}"
+                            }
+                    ]
+            ],
+            foa    : [
+                    baseURL: 'http://biodiversity.org.au/',
+                    service: [
+                            html: { ident ->
+                                "foa/taxa/${ident.idNumber}/summary"
+                            }
+                    ]
+            ]]
+}
+
+api.auth = [
+        'blah-blah-blah-blah-blah': [
+                application: 'apni-services',
+                roles      : ['admin'],
+                host       : '127.0.0.1\'
+        ]
+]
+'''
+        File testConfigFile = new File('test-nsl-mapper-config.groovy')
+        testConfigFile.write(configString)
+        return slurper.parse(configString)
     }
 }

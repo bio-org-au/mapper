@@ -16,6 +16,7 @@
 
 package au.org.biodiversity.nsl
 
+import grails.util.Environment
 import org.apache.shiro.SecurityUtils
 
 import java.sql.Timestamp
@@ -36,7 +37,9 @@ class Match {
         id generator: 'native', params: [sequence: 'mapper_sequence'], defaultValue: "nextval('mapper.mapper_sequence')"
         uri index: 'identity_uri_index', unique: true
         deprecated defaultvalue: "false"
-        updatedAt sqlType: 'timestamp with time zone'
+        if (Environment.current != Environment.TEST) { // test uses H2 so it doesn't understand this
+            updatedAt sqlType: 'timestamp with time zone'
+        }
     }
 
     static constraints = {
