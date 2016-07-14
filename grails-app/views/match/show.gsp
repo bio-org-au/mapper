@@ -27,13 +27,24 @@
         <span id="uri-label" class="property-label"><g:message code="match.uri.label" default="Uri"/></span>
 
         <span class="property-value" aria-labelledby="uri-label">
-          <a href="${request.contextPath}/boa/${matchInstance.uri}">
+          <a href="${request.contextPath}/${matchInstance.uri}">
             <g:fieldValue bean="${matchInstance}" field="uri"/>
           </a>
         </span>
 
       </li>
     </g:if>
+    <li class="fieldcontain">
+      <span id="uri-label" class="property-label">Hosts</span>
+
+      <ul>
+        <g:each in="${matchInstance.hosts}" var="host">
+          <li>
+            Host: ${host.hostName}
+          </li>
+        </g:each>
+      </ul>
+    </li>
 
     <li class="fieldcontain">
       <span id="deprecated-label" class="property-label"><g:message code="match.uri.label" default="Deprecated"/></span>
@@ -53,7 +64,7 @@
             <g:each in="${matchInstance.identifiers.collect { it.identities*.uri }.flatten()}" var="alias">
               <g:if test="${alias != matchInstance.uri}">
                 <li>
-                  <a href="${request.contextPath}/boa/${alias}">
+                  <a href="${request.contextPath}/${alias}">
                     ${alias}
                   </a>
                 </li>

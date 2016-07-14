@@ -23,13 +23,13 @@ import java.sql.Timestamp
 
 class Match {
 
-    String uri
-    Boolean deprecated = false
+    String uri //the unique identifier section of the match less the resolver host e.g. name/apni/123456
+    Boolean deprecated = false //if this URI is depecated and should no longer be referred to publicly
     Timestamp updatedAt
     String updatedBy
 
-    static belongsTo = Identifier
-    static hasMany = [identifiers: Identifier]
+    static belongsTo = [Identifier, Host]
+    static hasMany = [identifiers: Identifier, hosts: Host]
     static mappedBy = [identifiers: "identities"]
 
     static mapping = {
