@@ -80,16 +80,22 @@ class MappingService {
 
     private String encodeParts(String uri) {
         uri.split('/').collect{ it.encodeAsURL() }.join('/').replaceAll(/\+/, '%20')
+        //note the + -> %20 replacement is to handle proxies encoding + as '+' not space.
+    }
+
+    private String getResolverPrefix() {
+        String prefix = grailsApplication.config.mapper.resolverURL + '/'
+        String contextExtension = grailsApplication.config.mapper.contextExtension
+
+        if(contextExtension) {
+            prefix += "$contextExtension/"
+        }
+        return prefix
     }
 
     private int getFullPrefixLength() {
         if(!fullPrefixLength) {
-            String prefix = grailsApplication.config.mapper.resolverURL + '/'
-            String contextExtension = grailsApplication.config.mapper.contextExtension
-
-            if(contextExtension) {
-                prefix += "$contextExtension/"
-            }
+            String prefix = getResolverPrefix()
             fullPrefixLength = prefix.size()
             log.info "full prefix length set to $fullPrefixLength"
         }
@@ -98,12 +104,7 @@ class MappingService {
 
     private int getRelPrefixLength() {
         if(!relPrefixLength) {
-            String prefix = grailsApplication.config.mapper.resolverURL + '/'
-            String contextExtension = grailsApplication.config.mapper.contextExtension
-
-            if(contextExtension) {
-                prefix += "$contextExtension/"
-            }
+            String prefix = getResolverPrefix()
             prefix = prefix.replaceAll("^https?://[^/]*", '')
             relPrefixLength = prefix.size()
             log.info "relative prefix length set to $relPrefixLength"
@@ -112,6 +113,19 @@ class MappingService {
         return relPrefixLength
     }
 
+    /**
+     * Get the unique match part from the given URI by removing the Resolver + context extension prefix from the uri
+     *
+     * for example given 'https://id.biodiversity.org.au/nsl/mapper/boa/name/apni/123456' where the resolver URL is
+     * 'https://id.biodiversity.org.au' and the contextExtension is 'nsl/mapper/boa' it will return
+     * 'name/apni/123456'
+     *
+     * Note this is intended for the uri supplied behind a proxy redirection, so a proxy might redirect
+     * 'http://id.biodiversity.org.au/name/apni/110231' to 'http://id.biodiversity.org.au/nsl/mapper/boa/name/apni/110231'
+     *
+     * @param uri
+     * @return the unique match string to try.
+     */
     String extractMatchStringFromURI(String uri) {
         log.info "extracting match from $uri"
 
@@ -125,5 +139,14 @@ class MappingService {
         log.debug "URI: $uri -> $match"
 
         return match
+    }
+
+    String extractMatchStringFromResolverURI(String uri) {
+        if(uri.startsWith('http')) {
+            String resolverUrl = grailsApplication.config.mapper.resolverURL + '/'
+            return uri - resolverUrl
+        } else {
+            return uri
+        }
     }
 }

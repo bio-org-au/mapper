@@ -20,7 +20,6 @@ class ServiceTagLib {
 
     def grailsApplication
 
-//    static defaultEncodeAs = 'html'
     static encodeAsForTags = [tagName: 'raw']
     static namespace = "st"
 
@@ -62,4 +61,5 @@ class ServiceTagLib {
             out << 'configure message filename.'
         }
     }
+
 }

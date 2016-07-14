@@ -28,13 +28,15 @@ import static org.springframework.http.HttpStatus.NOT_FOUND
 class BrokerController {
 
     def mappingService
-    def grailsApplication
 
     static allowedMethods = ['GET', 'POST']
 
     def index() {
         String requested = (WebUtils.getForwardURI(request) ?: request.getAttribute('javax.servlet.error.request_uri'))
         requested = requested.decodeURL()
+        if(request.queryString) {
+            requested += "?${request.queryString}"
+        }
 
         List<String> parts = requested.split('/api/')
         String matchUri = mappingService.extractMatchStringFromURI(parts[0])
@@ -128,9 +130,15 @@ class BrokerController {
         return null
     }
 
+    /**
+     * get the current identity for an identifier URI like 'https://id.biodiversity.org.au/name/apni/123456'
+     *
+     * @param uri
+     * @return one or more identifiers that are associated with this URI
+     */
     def getCurrentIdentity(String uri) {
 
-        String requested = mappingService.extractMatchStringFromURI(uri.decodeURL())
+        String requested = mappingService.extractMatchStringFromResolverURI(uri.decodeURL())
 
         Match match = Match.findByUri(requested)
         if (match) {
