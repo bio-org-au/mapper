@@ -203,7 +203,7 @@ class AdminController {
     def export() {
 
         final Date date = new Date()
-        final String tempFileDir = '/home/pmcneil/tmp'
+        final String tempFileDir = grailsApplication.config.mapper.temp.file.directory
         final String fileName = "mapper-export-${date.format('yyyy-MM-dd-mmss')}.csv"
         final File outputFile = new File(tempFileDir, fileName)
 
