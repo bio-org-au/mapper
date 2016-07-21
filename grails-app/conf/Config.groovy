@@ -137,6 +137,7 @@ log4j.main = {
 //The configuration below is a default for testing and should be overridden in the ~/.nsl/nsl-mapper-config.groovy file
 
 mapper {
+    temp.file.directory = "/tmp"
     resolverURL = 'http://localhost:7070/nsl-mapper/boa'
     shards = [apni: [
             baseURL: 'http://localhost:8080',
