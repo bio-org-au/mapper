@@ -19,10 +19,11 @@ package au.org.biodiversity.nsl
 import grails.transaction.Transactional
 import groovy.sql.Sql
 import org.apache.shiro.authz.annotation.RequiresRoles
+import org.postgresql.PGConnection
+import org.postgresql.copy.CopyManager
 import org.springframework.validation.Errors
 import org.springframework.validation.FieldError
-
-import javax.servlet.ServletOutputStream
+import java.sql.Connection
 
 import static org.springframework.http.HttpStatus.CONFLICT
 import static org.springframework.http.HttpStatus.FORBIDDEN
@@ -36,8 +37,12 @@ class AdminController {
     @SuppressWarnings("GroovyUnusedDeclaration")
     static responseFormats = ['json']
 
-    private static Sql getNSL() {
-        Sql.newInstance('jdbc:postgresql://localhost:5432/nsl', 'nsldev', 'nsldev', 'org.postgresql.Driver')
+    private Sql getNSL() {
+        String dbUrl = grailsApplication.config.dataSource.url
+        String username = grailsApplication.config.dataSource.username
+        String password = grailsApplication.config.dataSource.password
+        String driverClassName = grailsApplication.config.dataSource.driverClassName
+        Sql.newInstance(dbUrl, username, password, driverClassName)
     }
 
 
@@ -196,28 +201,33 @@ class AdminController {
 
     @RequiresRoles('admin')
     def export() {
+
+        final Date date = new Date()
+        final String tempFileDir = '/home/pmcneil/tmp'
+        final String fileName = "mapper-export-${date.format('yyyy-MM-dd-mmss')}.csv"
+        final File outputFile = new File(tempFileDir, fileName)
+
+        final String query = """copy (SELECT
+  i.object_type,
+  i.name_space,
+  i.id_number,
+  h.host_name,
+  m.uri
+FROM mapper.identifier i
+  LEFT JOIN mapper.identifier_identities mi ON i.id = mi.identifier_id
+  LEFT JOIN mapper.match m ON mi.match_id = m.id
+  LEFT JOIN mapper.host_matches hm ON m.id = hm.match_id
+  LEFT JOIN mapper.host h ON hm.host_id = h.id
+order BY i.id_number) to STDOUT WITH CSV HEADER"""
+
         Sql sql = getNSL()
-        try {
-            response.contentType = 'application/octet-stream'
-            ServletOutputStream out = response.outputStream
-            String queryStr = """select
-  i.object_type || '.' || i.name_space || '.' || i.id_number || ' <- ' ||
-  (select string_agg(uri, ', ') from mapper.match m, mapper.identifier_identities mi where mi.identifier_id = i.id and m.id = mi.match_id) as thing
-   from mapper.identifier i"""
-            int i = 0
-            sql.eachRow(queryStr) { row ->
-                out << row[0] + '\n'
-                i++
-                if (i % 1000 == 0) {
-                    response.outputStream.flush()
-                    log.debug "$i done"
-                }
-            }
-        } finally {
-            sql.close()
-            response.outputStream.flush()
-            response.outputStream.close()
-        }
+        Connection connection = sql.getConnection()
+        connection.setAutoCommit(false);
+        CopyManager copyManager = ((PGConnection) connection).getCopyAPI()
+        copyManager.copyOut(query, new FileWriter(outputFile))
+        sql.close()
+
+        render(file: outputFile, fileName: outputFile.name, contentType: 'text/csv')
     }
 
     @RequiresRoles('admin')
