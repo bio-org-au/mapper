@@ -65,15 +65,24 @@ class AdminController {
             return
         }
         Identifier identifier = new Identifier(nameSpace: nameSpace, objectType: objectType, idNumber: idNumber)
-        identifier.addToIdentities(new Match(uri: identifier.toUrn()))
-        if (identifier.validate()) {
+        Match match = new Match(uri: identifier.toUrn())
+        identifier.addToIdentities(match)
+        identifier.preferredUri = match
+        if (identifier.validate() && match.validate()) {
             identifier.save(flush: true)
+            Host host = Host.findByPreferred(true)
+            if (host) {
+                host.addToMatches(match)
+                host.save()
+            }
             render(contentType: 'application/json') {
                 [success: 'Identity saved with default uri.', identity: identifier]
             }
         } else {
             render(contentType: 'application/json') {
-                [error: 'Identity is not valid, see errors.', identity: identifier, errors: buildErrorString(identifier.errors)]
+                [error   : 'Identity is not valid, see errors.',
+                 identity: identifier,
+                 errors  : buildErrorString(identifier.errors) + '\n' + buildErrorString(match.errors)]
             }
         }
     }
@@ -95,6 +104,37 @@ class AdminController {
     }
 
     @RequiresRoles('admin')
+    def addHost(String hostname) {
+        Host host = Host.findByHostName(hostname)
+        if (!host) {
+            host = new Host(hostName: hostname, preferred: false)
+            host.save()
+            render(contentType: 'application/json') { [success: 'Host saved.', host: host] }
+        } else {
+            render(contentType: 'application/json') { [error: "Host already exists.", params: params] }
+        }
+    }
+
+    @RequiresRoles('admin')
+    def setPreferredHost(String hostname) {
+        Host host = Host.findByHostName(hostname)
+        if (!host) {
+            render(contentType: 'application/json') { [error: "Host not found.", params: params] }
+            return
+        }
+        if (!host.preferred) {
+            Host prefHost = Host.findByPreferred(true)
+            if (prefHost) {
+                prefHost.preferred = false
+                prefHost.save()
+            }
+            host.preferred = true
+            host.save()
+        }
+        render(contentType: 'application/json') { [success: 'Preferred host set.', host: host] }
+    }
+
+    @RequiresRoles('admin')
     def addURI(String nameSpace, String objectType, Long idNumber, String uri) {
         Identifier identifier = exists(nameSpace, objectType, idNumber)
         if (identifier) {
@@ -106,6 +146,11 @@ class AdminController {
             Match match = new Match(uri: uri)
             identifier.addToIdentities(match)
             identifier.save()
+            Host host = Host.findByPreferred(true)
+            if (host) {
+                host.addToMatches(match)
+                host.save()
+            }
             render(contentType: 'application/json') { [success: 'URI saved with identity.', identity: identifier] }
             return
         }

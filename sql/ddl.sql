@@ -1,104 +1,106 @@
+ALTER TABLE mapper.host_matches
+  DROP CONSTRAINT FK_a8bm2k5e2sy584b4cv0jjda3n;
 
-    alter table mapper.host_matches 
-        drop constraint FK_a8bm2k5e2sy584b4cv0jjda3n;
+ALTER TABLE mapper.host_matches
+  DROP CONSTRAINT FK_p3tagks9u9hyrdk2i95mv0dp9;
 
-    alter table mapper.host_matches 
-        drop constraint FK_p3tagks9u9hyrdk2i95mv0dp9;
+ALTER TABLE mapper.identifier
+  DROP CONSTRAINT FK_k2o53uoslf9gwqrd80cu2al4s;
 
-    alter table mapper.identifier 
-        drop constraint FK_k2o53uoslf9gwqrd80cu2al4s;
+ALTER TABLE mapper.identifier_identities
+  DROP CONSTRAINT FK_mf2dsc2dxvsa9mlximsct7uau;
 
-    alter table mapper.identifier_identities 
-        drop constraint FK_mf2dsc2dxvsa9mlximsct7uau;
+ALTER TABLE mapper.identifier_identities
+  DROP CONSTRAINT FK_ojfilkcwskdvvbggwsnachry2;
 
-    alter table mapper.identifier_identities 
-        drop constraint FK_ojfilkcwskdvvbggwsnachry2;
+DROP TABLE IF EXISTS mapper.host CASCADE;
 
-    drop table if exists mapper.host cascade;
+DROP TABLE IF EXISTS mapper.host_matches CASCADE;
 
-    drop table if exists mapper.host_matches cascade;
+DROP TABLE IF EXISTS mapper.identifier CASCADE;
 
-    drop table if exists mapper.identifier cascade;
+DROP TABLE IF EXISTS mapper.identifier_identities CASCADE;
 
-    drop table if exists mapper.identifier_identities cascade;
+DROP TABLE IF EXISTS mapper.match CASCADE;
 
-    drop table if exists mapper.match cascade;
+DROP SEQUENCE mapper.mapper_sequence;
 
-    drop sequence mapper.mapper_sequence;
+CREATE TABLE mapper.host (
+  id        INT8 DEFAULT nextval('mapper.mapper_sequence') NOT NULL,
+  host_name VARCHAR(512)                                   NOT NULL,
+  preferred BOOLEAN                                        NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (id)
+);
 
-    create table mapper.host (
-        id int8 default nextval('mapper.mapper_sequence') not null,
-        host_name varchar(512) not null,
-        primary key (id)
-    );
+CREATE TABLE mapper.host_matches (
+  match_id INT8 NOT NULL,
+  host_id  INT8 NOT NULL,
+  PRIMARY KEY (host_id, match_id)
+);
 
-    create table mapper.host_matches (
-        match_id int8 not null,
-        host_id int8 not null,
-        primary key (host_id, match_id)
-    );
+CREATE TABLE mapper.identifier (
+  id               INT8 DEFAULT nextval('mapper.mapper_sequence') NOT NULL,
+  deleted          BOOLEAN                                        NOT NULL,
+  id_number        INT8                                           NOT NULL,
+  name_space       VARCHAR(255)                                   NOT NULL,
+  object_type      VARCHAR(255)                                   NOT NULL,
+  preferred_uri_id INT8,
+  reason_deleted   VARCHAR(255),
+  updated_at       TIMESTAMP WITH TIME ZONE,
+  updated_by       VARCHAR(255),
+  PRIMARY KEY (id)
+);
 
-    create table mapper.identifier (
-        id int8 default nextval('mapper.mapper_sequence') not null,
-        deleted boolean not null,
-        id_number int8 not null,
-        name_space varchar(255) not null,
-        object_type varchar(255) not null,
-        preferred_uri_id int8,
-        reason_deleted varchar(255),
-        updated_at timestamp with time zone,
-        updated_by varchar(255),
-        primary key (id)
-    );
+CREATE TABLE mapper.identifier_identities (
+  identifier_id INT8 NOT NULL,
+  match_id      INT8 NOT NULL,
+  PRIMARY KEY (identifier_id, match_id)
+);
 
-    create table mapper.identifier_identities (
-        identifier_id int8 not null,
-        match_id int8 not null,
-        primary key (identifier_id, match_id)
-    );
+CREATE TABLE mapper.match (
+  id         INT8 DEFAULT nextval('mapper.mapper_sequence') NOT NULL,
+  deprecated BOOLEAN                                        NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE,
+  updated_by VARCHAR(255),
+  uri        VARCHAR(255)                                   NOT NULL,
+  PRIMARY KEY (id)
+);
 
-    create table mapper.match (
-        id int8 default nextval('mapper.mapper_sequence') not null,
-        deprecated boolean not null,
-        updated_at timestamp with time zone,
-        updated_by varchar(255),
-        uri varchar(255) not null,
-        primary key (id)
-    );
+ALTER TABLE mapper.identifier
+  ADD CONSTRAINT unique_name_space UNIQUE (id_number, object_type, name_space);
 
-    alter table mapper.identifier 
-        add constraint unique_name_space  unique (id_number, object_type, name_space);
+CREATE INDEX identifier_index
+  ON mapper.identifier (id_number, name_space, object_type);
 
-    create index identifier_index on mapper.identifier (id_number, name_space, object_type);
+ALTER TABLE mapper.match
+  ADD CONSTRAINT UK_2u4bey0rox6ubtvqevg3wasp9 UNIQUE (uri);
 
-    alter table mapper.match 
-        add constraint UK_2u4bey0rox6ubtvqevg3wasp9  unique (uri);
+CREATE INDEX identity_uri_index
+  ON mapper.match (uri);
 
-    create index identity_uri_index on mapper.match (uri);
+ALTER TABLE mapper.host_matches
+  ADD CONSTRAINT FK_a8bm2k5e2sy584b4cv0jjda3n
+FOREIGN KEY (host_id)
+REFERENCES mapper.host;
 
-    alter table mapper.host_matches 
-        add constraint FK_a8bm2k5e2sy584b4cv0jjda3n 
-        foreign key (host_id) 
-        references mapper.host;
+ALTER TABLE mapper.host_matches
+  ADD CONSTRAINT FK_p3tagks9u9hyrdk2i95mv0dp9
+FOREIGN KEY (match_id)
+REFERENCES mapper.match;
 
-    alter table mapper.host_matches 
-        add constraint FK_p3tagks9u9hyrdk2i95mv0dp9 
-        foreign key (match_id) 
-        references mapper.match;
+ALTER TABLE mapper.identifier
+  ADD CONSTRAINT FK_k2o53uoslf9gwqrd80cu2al4s
+FOREIGN KEY (preferred_uri_id)
+REFERENCES mapper.match;
 
-    alter table mapper.identifier 
-        add constraint FK_k2o53uoslf9gwqrd80cu2al4s 
-        foreign key (preferred_uri_id) 
-        references mapper.match;
+ALTER TABLE mapper.identifier_identities
+  ADD CONSTRAINT FK_mf2dsc2dxvsa9mlximsct7uau
+FOREIGN KEY (match_id)
+REFERENCES mapper.match;
 
-    alter table mapper.identifier_identities 
-        add constraint FK_mf2dsc2dxvsa9mlximsct7uau 
-        foreign key (match_id) 
-        references mapper.match;
+ALTER TABLE mapper.identifier_identities
+  ADD CONSTRAINT FK_ojfilkcwskdvvbggwsnachry2
+FOREIGN KEY (identifier_id)
+REFERENCES mapper.identifier;
 
-    alter table mapper.identifier_identities 
-        add constraint FK_ojfilkcwskdvvbggwsnachry2 
-        foreign key (identifier_id) 
-        references mapper.identifier;
-
-    create sequence mapper.mapper_sequence;
+CREATE SEQUENCE mapper.mapper_sequence;

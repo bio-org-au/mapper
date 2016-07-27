@@ -30,7 +30,7 @@ import spock.lang.Specification
  */
 @TestFor(AdminController)
 @TestMixin(HibernateTestMixin)
-@Domain([Identifier, Match])
+@Domain([Identifier, Match, Host])
 class AdminControllerSpec extends Specification {
 
     def setup() {
@@ -44,15 +44,64 @@ class AdminControllerSpec extends Specification {
 
         SecurityUtils.metaClass.static.getSubject = { subject }
 
-        Match.deleteAll(Match.list())
+        Host.list().each { Host host ->
+            List<Match> m = new ArrayList<>(host.matches)
+            m.each { it.removeFromHosts(host) }
+            host.delete(flush: true)
+        }
         Identifier.deleteAll((Identifier.list()))
+        Match.deleteAll(Match.list())
     }
 
     def cleanup() {
     }
 
+    void "test add host"() {
+        when: "we try to add a host"
+        controller.addHost('id.biodiversity.org.au')
+        println response.text
+
+        then: "host should exist"
+        response.text.contains('Host saved.')
+        Host.count() == 1
+        !Host.list().first().preferred
+
+        when: "we set it as preferred"
+        response.reset()
+        controller.setPreferredHost('id.biodiversity.org.au')
+
+        then: "the host is set as preferred"
+        Host.list().first().preferred
+
+        when: "we add a non preferred host it is stored correctly"
+        response.reset()
+        controller.addHost('biodiversity.org.au')
+        println response.text
+
+        then: "host should exist and not be preferred"
+        response.text.contains('Host saved.')
+        Host.count() == 2
+        Host.findByHostName('biodiversity.org.au')?.preferred == false
+        Host.findAllByPreferred(true).size() == 1
+
+        when: "we set the second host as preferred"
+        response.reset()
+        controller.setPreferredHost('biodiversity.org.au')
+        println response.text
+
+        then: "it is preferred and the only preferred host"
+        Host.findByHostName('biodiversity.org.au').preferred
+        Host.findAllByPreferred(true).size() == 1
+
+
+    }
+
     void "test add Identifier"() {
         when: "we try to add a valid identifier it works"
+        controller.addHost('id.biodiversity.org.au')
+        controller.addHost('biodiversity.org.au')
+        controller.setPreferredHost('id.biodiversity.org.au')
+        response.reset()
         controller.addIdentifier('apni', 'name', 12345)
 
         println response.text
@@ -61,10 +110,12 @@ class AdminControllerSpec extends Specification {
         response.text.contains('Identity saved with default uri.')
         Identifier.count() == 1
         Match.count() == 1
+        Host.count() == 2
 
         when:
         def i1 = Identifier.get(1)
         def m1 = Match.get(1)
+        def h1 = Host.findByHostName('id.biodiversity.org.au')
 
         then:
 
@@ -72,8 +123,13 @@ class AdminControllerSpec extends Specification {
         i1.objectType == 'name'
         i1.idNumber == 12345l
         i1.identities.size() == 1
+        i1.preferredUri == m1
         m1.uri == 'name/apni/12345'
         m1.identifiers.size() == 1
+        h1.hostName == 'id.biodiversity.org.au'
+        m1.hosts
+        m1.hosts.size() == 1
+        m1.hosts.contains(h1)
 
         when: "we try to add the same identifier it fails"
         response.reset()
@@ -103,7 +159,9 @@ class AdminControllerSpec extends Specification {
         then:
         response.text.contains('Identity saved with default uri.')
         Identifier.count() == 2
+        println Match.list()
         Match.count() == 2
+        Identifier.findByIdNumber(12346).preferredUri.hosts.first() == h1
 
         when:
         def i5 = Identifier.get(2)

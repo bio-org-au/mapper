@@ -81,7 +81,7 @@ class BrokerController {
                     response.status = 301
                     //the preferred URI will be the default identifier URN e.g. name/apni/12345
                     Match preferred = mappingService.getPreferredLink(identifier)
-                    String link = mappingService.makeResolverLink(preferred)
+                    String link = mappingService.makePrefLink(preferred)
                     if (api) {
                         link += api
                     } else if (formatExtension) {
@@ -182,7 +182,7 @@ class BrokerController {
         if (identifier) {
             Match preferred = mappingService.getPreferredLink(identifier)
             if (preferred) {
-                String link = mappingService.makeResolverLink(preferred)
+                String link = mappingService.makePrefLink(preferred)
                 log.info "Preferred link to $objectType/$nameSpace/$idNumber is $link"
                 return withFormat {
                     html([link: link])

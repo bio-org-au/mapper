@@ -30,7 +30,7 @@ class MappingService {
         String shardHostname = grailsApplication.config.mapper.shards[ident.nameSpace].baseURL
 
         Closure serviceClosure = grailsApplication.config.mapper.shards[ident.nameSpace].service[format] as Closure
-        if(!serviceClosure) {
+        if (!serviceClosure) {
             serviceClosure = grailsApplication.config.mapper.shards[ident.nameSpace].service['html'] as Closure
         }
 
@@ -38,17 +38,26 @@ class MappingService {
         return "$shardHostname/$serviceUri"
     }
 
-    String makeResolverLink(Match m) {
+    String makePrefLink(Match m) {
         String resolverUrl = grailsApplication.config.mapper.resolverURL
-        "${resolverUrl}/${encodeParts(m.uri)}"
+        Host host = m.hosts.find { it.preferred }
+        if (host) {
+            return "https://${host.hostName}/${encodeParts(m.uri)}"
+        } else {
+            return "${resolverUrl}/${encodeParts(m.uri)}"
+        }
     }
 
     List<Map> findMatchingLinks(Identifier ident) {
         Match preferred = getPreferredLink(ident)
-        ident.identities.findAll { Match m -> !m.deprecated }.collect { Match m ->
-            [link: makeResolverLink(m), resourceCount: m.identifiers.size(), preferred: m.id == preferred.id]
-        }.sort { a,b ->
-            if( a.resourceCount == b.resourceCount) {
+        List<Map> links = []
+        ident.identities.findAll { Match m -> !m.deprecated }.each { Match m ->
+            m.hosts.each { Host host ->
+                links << [link: "https://${host.hostName}/${encodeParts(m.uri)}", resourceCount: m.identifiers.size(), preferred: host.preferred && m.id == preferred.id]
+            }
+        }
+        links.sort { a, b ->
+            if (a.resourceCount == b.resourceCount) {
                 a.link <=> b.link
             } else {
                 a.resourceCount <=> b.resourceCount
@@ -58,7 +67,7 @@ class MappingService {
 
     @Transactional
     Match getPreferredLink(Identifier identifier) {
-        if(identifier.preferredUri) {
+        if (identifier.preferredUri) {
             return identifier.preferredUri
         }
         String prefUrnStr = identifier.toUrn()
@@ -79,7 +88,7 @@ class MappingService {
     }
 
     private String encodeParts(String uri) {
-        uri.split('/').collect{ it.encodeAsURL() }.join('/').replaceAll(/\+/, '%20')
+        uri.split('/').collect { it.encodeAsURL() }.join('/').replaceAll(/\+/, '%20')
         //note the + -> %20 replacement is to handle proxies encoding + as '+' not space.
     }
 
@@ -87,14 +96,14 @@ class MappingService {
         String prefix = grailsApplication.config.mapper.resolverURL + '/'
         String contextExtension = grailsApplication.config.mapper.contextExtension
 
-        if(contextExtension) {
+        if (contextExtension) {
             prefix += "$contextExtension/"
         }
         return prefix
     }
 
     private int getFullPrefixLength() {
-        if(!fullPrefixLength) {
+        if (!fullPrefixLength) {
             String prefix = getResolverPrefix()
             fullPrefixLength = prefix.size()
             log.info "full prefix length set to $fullPrefixLength"
@@ -103,7 +112,7 @@ class MappingService {
     }
 
     private int getRelPrefixLength() {
-        if(!relPrefixLength) {
+        if (!relPrefixLength) {
             String prefix = getResolverPrefix()
             prefix = prefix.replaceAll("^https?://[^/]*", '')
             relPrefixLength = prefix.size()
@@ -130,7 +139,7 @@ class MappingService {
         log.info "extracting match from $uri"
 
         String match
-        if(uri.startsWith('http')) {
+        if (uri.startsWith('http')) {
             match = uri.substring(getFullPrefixLength())
         } else {
             match = uri.substring(getRelPrefixLength())
@@ -142,7 +151,7 @@ class MappingService {
     }
 
     String extractMatchStringFromResolverURI(String uri) {
-        if(uri.startsWith('http')) {
+        if (uri.startsWith('http')) {
             String resolverUrl = grailsApplication.config.mapper.resolverURL + '/'
             return uri - resolverUrl
         } else {
