@@ -18,6 +18,7 @@ package au.org.biodiversity.nsl
 
 import grails.converters.XML
 import org.codehaus.groovy.grails.web.util.WebUtils
+import org.grails.plugins.metrics.groovy.Timed
 import org.springframework.http.HttpStatus
 
 import java.util.regex.Matcher
@@ -31,6 +32,7 @@ class BrokerController {
 
     static allowedMethods = ['GET', 'POST']
 
+    @Timed()
     def index() {
         String requested = (WebUtils.getForwardURI(request) ?: request.getAttribute('javax.servlet.error.request_uri'))
         requested = requested.decodeURL()
@@ -46,7 +48,7 @@ class BrokerController {
             api = "/api/${parts[1]}"
         }
 
-        String formatExtension = null
+        String formatExtension
         if (api) {
             formatExtension = extension(api)
         } else {
@@ -136,6 +138,7 @@ class BrokerController {
      * @param uri
      * @return one or more identifiers that are associated with this URI
      */
+    @Timed()
     def getCurrentIdentity(String uri) {
 
         String requested = mappingService.extractMatchStringFromResolverURI(uri.decodeURL())
@@ -155,6 +158,7 @@ class BrokerController {
         return respond(jsonErrorResponse, [view: '/common/404', model: [message: message], status: NOT_FOUND])
     }
 
+    @Timed()
     def links(String nameSpace, String objectType, Long idNumber) {
 
         Identifier identifier = Identifier.findByNameSpaceAndObjectTypeAndIdNumber(nameSpace, objectType, idNumber)
@@ -177,6 +181,7 @@ class BrokerController {
         }
     }
 
+    @Timed()
     def preferredLink(String nameSpace, String objectType, Long idNumber) {
         Identifier identifier = Identifier.findByNameSpaceAndObjectTypeAndIdNumber(nameSpace, objectType, idNumber)
         if (identifier) {

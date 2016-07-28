@@ -185,3 +185,5 @@ ldap {
         }
     }
 }
+
+metrics.servletEnabled = true

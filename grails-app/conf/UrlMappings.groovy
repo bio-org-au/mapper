@@ -16,6 +16,7 @@
 
 class UrlMappings {
 
+    static excludes = ["/metrics/*"]
 	static mappings = {
 
         "/**"(controller: 'broker', action: 'index', method: "GET")

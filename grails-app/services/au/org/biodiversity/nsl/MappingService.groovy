@@ -16,16 +16,26 @@
 
 package au.org.biodiversity.nsl
 
-import grails.transaction.Transactional
+import org.grails.plugins.metrics.groovy.Timed
+
 
 class MappingService {
 
     def grailsApplication
 
+    Host preferredHost
     // We cache the host/context prefix length to try and speed up the matching of URLs to identity
     private Integer fullPrefixLength = null
     private Integer relPrefixLength = null
 
+    private getPreferredHost() {
+        if(!preferredHost) {
+            preferredHost = Host.findByPreferred(true)
+        }
+        return preferredHost
+    }
+
+    @Timed
     String makeCurrentLink(Identifier ident, String format = 'html') {
         String shardHostname = grailsApplication.config.mapper.shards[ident.nameSpace].baseURL
 
@@ -38,12 +48,13 @@ class MappingService {
         return "$shardHostname/$serviceUri"
     }
 
+    @Timed
     String makePrefLink(Match m) {
-        String resolverUrl = grailsApplication.config.mapper.resolverURL
-        Host host = m.hosts.find { it.preferred }
+        Host host = getPreferredHost()
         if (host) {
             return "https://${host.hostName}/${encodeParts(m.uri)}"
         } else {
+            String resolverUrl = grailsApplication.config.mapper.resolverURL
             return "${resolverUrl}/${encodeParts(m.uri)}"
         }
     }
@@ -65,29 +76,31 @@ class MappingService {
         }
     }
 
-    @Transactional
+    @Timed
     Match getPreferredLink(Identifier identifier) {
         if (identifier.preferredUri) {
             return identifier.preferredUri
         }
-        String prefUrnStr = identifier.toUrn()
-        Match preferred = identifier.identities.find { Match m -> m.uri == prefUrnStr }
-        if (!preferred) {
-            //we don't have the default so find the shortest non deprecated link to this identifier
-            preferred = identifier.identities
-                                  .sort { a, b -> a.uri <=> b.uri }
-                                  .find { Match m ->
-                !m.deprecated &&
-                        m.identifiers.size() == 1 &&
-                        m.identifiers.first() == identifier
+        Identifier.withTransaction {
+            String prefUrnStr = identifier.toUrn()
+            Match preferred = identifier.identities.find { Match m -> m.uri == prefUrnStr }
+            if (!preferred) {
+                //we don't have the default so find the shortest non deprecated link to this identifier
+                preferred = identifier.identities
+                                      .sort { a, b -> a.uri <=> b.uri }
+                                      .find { Match m ->
+                    !m.deprecated &&
+                            m.identifiers.size() == 1 &&
+                            m.identifiers.first() == identifier
+                }
             }
+            identifier.preferredUri = preferred
+            identifier.save()
+            return preferred.refresh()
         }
-        identifier.preferredUri = preferred
-        identifier.save()
-        return preferred.refresh()
     }
 
-    private String encodeParts(String uri) {
+    private static String encodeParts(String uri) {
         uri.split('/').collect { it.encodeAsURL() }.join('/').replaceAll(/\+/, '%20')
         //note the + -> %20 replacement is to handle proxies encoding + as '+' not space.
     }
