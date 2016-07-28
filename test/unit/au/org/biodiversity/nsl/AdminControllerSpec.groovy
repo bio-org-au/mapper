@@ -44,11 +44,11 @@ class AdminControllerSpec extends Specification {
 
         SecurityUtils.metaClass.static.getSubject = { subject }
 
-        Host.list().each { Host host ->
-            List<Match> m = new ArrayList<>(host.matches)
-            m.each { it.removeFromHosts(host) }
-            host.delete(flush: true)
+        Match.list().each { Match match ->
+            List<Host> h = new ArrayList<>(match.hosts)
+            h.each { match.removeFromHosts(it) }
         }
+        Host.deleteAll(Host.list())
         Identifier.deleteAll((Identifier.list()))
         Match.deleteAll(Match.list())
     }

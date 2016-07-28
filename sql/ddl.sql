@@ -1,9 +1,3 @@
-ALTER TABLE mapper.host_matches
-  DROP CONSTRAINT FK_a8bm2k5e2sy584b4cv0jjda3n;
-
-ALTER TABLE mapper.host_matches
-  DROP CONSTRAINT FK_p3tagks9u9hyrdk2i95mv0dp9;
-
 ALTER TABLE mapper.identifier
   DROP CONSTRAINT FK_k2o53uoslf9gwqrd80cu2al4s;
 
@@ -13,15 +7,21 @@ ALTER TABLE mapper.identifier_identities
 ALTER TABLE mapper.identifier_identities
   DROP CONSTRAINT FK_ojfilkcwskdvvbggwsnachry2;
 
-DROP TABLE IF EXISTS mapper.host CASCADE;
+ALTER TABLE mapper.match_host
+  DROP CONSTRAINT FK_3unhnjvw9xhs9l3ney6tvnioq;
 
-DROP TABLE IF EXISTS mapper.host_matches CASCADE;
+ALTER TABLE mapper.match_host
+  DROP CONSTRAINT FK_iw1fva74t5r4ehvmoy87n37yr;
+
+DROP TABLE IF EXISTS mapper.host CASCADE;
 
 DROP TABLE IF EXISTS mapper.identifier CASCADE;
 
 DROP TABLE IF EXISTS mapper.identifier_identities CASCADE;
 
 DROP TABLE IF EXISTS mapper.match CASCADE;
+
+DROP TABLE IF EXISTS mapper.match_host CASCADE;
 
 DROP SEQUENCE mapper.mapper_sequence;
 
@@ -30,12 +30,6 @@ CREATE TABLE mapper.host (
   host_name VARCHAR(512)                                   NOT NULL,
   preferred BOOLEAN                                        NOT NULL DEFAULT FALSE,
   PRIMARY KEY (id)
-);
-
-CREATE TABLE mapper.host_matches (
-  match_id INT8 NOT NULL,
-  host_id  INT8 NOT NULL,
-  PRIMARY KEY (host_id, match_id)
 );
 
 CREATE TABLE mapper.identifier (
@@ -66,6 +60,11 @@ CREATE TABLE mapper.match (
   PRIMARY KEY (id)
 );
 
+CREATE TABLE mapper.match_host (
+  match_hosts_id INT8,
+  host_id        INT8
+);
+
 ALTER TABLE mapper.identifier
   ADD CONSTRAINT unique_name_space UNIQUE (id_number, object_type, name_space);
 
@@ -77,16 +76,6 @@ ALTER TABLE mapper.match
 
 CREATE INDEX identity_uri_index
   ON mapper.match (uri);
-
-ALTER TABLE mapper.host_matches
-  ADD CONSTRAINT FK_a8bm2k5e2sy584b4cv0jjda3n
-FOREIGN KEY (host_id)
-REFERENCES mapper.host;
-
-ALTER TABLE mapper.host_matches
-  ADD CONSTRAINT FK_p3tagks9u9hyrdk2i95mv0dp9
-FOREIGN KEY (match_id)
-REFERENCES mapper.match;
 
 ALTER TABLE mapper.identifier
   ADD CONSTRAINT FK_k2o53uoslf9gwqrd80cu2al4s
@@ -102,5 +91,15 @@ ALTER TABLE mapper.identifier_identities
   ADD CONSTRAINT FK_ojfilkcwskdvvbggwsnachry2
 FOREIGN KEY (identifier_id)
 REFERENCES mapper.identifier;
+
+ALTER TABLE mapper.match_host
+  ADD CONSTRAINT FK_3unhnjvw9xhs9l3ney6tvnioq
+FOREIGN KEY (host_id)
+REFERENCES mapper.host;
+
+ALTER TABLE mapper.match_host
+  ADD CONSTRAINT FK_iw1fva74t5r4ehvmoy87n37yr
+FOREIGN KEY (match_hosts_id)
+REFERENCES mapper.match;
 
 CREATE SEQUENCE mapper.mapper_sequence;

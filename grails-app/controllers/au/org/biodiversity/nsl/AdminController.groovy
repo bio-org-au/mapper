@@ -72,8 +72,8 @@ class AdminController {
             identifier.save(flush: true)
             Host host = Host.findByPreferred(true)
             if (host) {
-                host.addToMatches(match)
-                host.save()
+                match.addToHosts(host)
+                match.save()
             }
             render(contentType: 'application/json') {
                 [success: 'Identity saved with default uri.', identity: identifier]
@@ -148,8 +148,8 @@ class AdminController {
             identifier.save()
             Host host = Host.findByPreferred(true)
             if (host) {
-                host.addToMatches(match)
-                host.save()
+                match.addToHosts(host)
+                match.save()
             }
             render(contentType: 'application/json') { [success: 'URI saved with identity.', identity: identifier] }
             return

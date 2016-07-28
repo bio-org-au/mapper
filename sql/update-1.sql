@@ -85,3 +85,6 @@ INSERT INTO mapper.host_matches (
                        FROM mapper.host_matches hm
                        WHERE hm.match_id = m.id)
 );
+
+CREATE INDEX match_host_index
+ON mapper.host_matches (match_id);
