@@ -6,6 +6,11 @@ ALTER TABLE mapper.host_matches
 
 DROP INDEX IF EXISTS mapper.match_host_index;
 
+CREATE TABLE mapper.db_version (
+  id INT8 NOT NULL,
+  PRIMARY KEY (id)
+);
+
 DROP TABLE IF EXISTS mapper.host_matches CASCADE;
 
 CREATE TABLE mapper.match_host (
@@ -23,7 +28,8 @@ ALTER TABLE mapper.match_host
 FOREIGN KEY (match_hosts_id)
 REFERENCES mapper.match;
 
-CREATE INDEX match_host_index on mapper.match_host (match_hosts_id);
+CREATE INDEX match_host_index
+  ON mapper.match_host (match_hosts_id);
 
 INSERT INTO mapper.match_host (
   SELECT
@@ -86,4 +92,4 @@ INSERT INTO mapper.match_host (
 );
 
 -- version
-insert into db_version (id, version) VALUES (1,4);
+INSERT INTO db_version (id, version) VALUES (1, 4);
