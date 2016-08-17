@@ -92,4 +92,4 @@ INSERT INTO mapper.match_host (
 );
 
 -- version
-INSERT INTO db_version (id, version) VALUES (1, 4);
+INSERT INTO mapper.db_version (id, version) VALUES (1, 4);
