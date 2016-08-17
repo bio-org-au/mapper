@@ -84,3 +84,6 @@ INSERT INTO mapper.match_host (
                        FROM mapper.match_host hm
                        WHERE hm.match_hosts_id = m.id)
 );
+
+-- version
+insert into db_version (id, version) VALUES (1,4);
