@@ -8,6 +8,7 @@ DROP INDEX IF EXISTS mapper.match_host_index;
 
 CREATE TABLE mapper.db_version (
   id INT8 NOT NULL,
+  version int4 not null,
   PRIMARY KEY (id)
 );
 

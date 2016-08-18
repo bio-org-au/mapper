@@ -3,10 +3,10 @@
         drop constraint if exists FK_k2o53uoslf9gwqrd80cu2al4s;
 
     alter table if exists mapper.identifier_identities 
-        drop constraint if exists FK_ojfilkcwskdvvbggwsnachry2;
+        drop constraint if exists FK_mf2dsc2dxvsa9mlximsct7uau;
 
     alter table if exists mapper.identifier_identities 
-        drop constraint if exists FK_mf2dsc2dxvsa9mlximsct7uau;
+        drop constraint if exists FK_ojfilkcwskdvvbggwsnachry2;
 
     alter table if exists mapper.match_host 
         drop constraint if exists FK_3unhnjvw9xhs9l3ney6tvnioq;
@@ -34,6 +34,7 @@
 
     create table mapper.db_version (
         id int8 not null,
+        version int4 not null,
         primary key (id)
     );
 
@@ -58,8 +59,8 @@
     );
 
     create table mapper.identifier_identities (
-        match_id int8 not null,
         identifier_id int8 not null,
+        match_id int8 not null,
         primary key (identifier_id, match_id)
     );
 
@@ -93,14 +94,14 @@
         references mapper.match;
 
     alter table if exists mapper.identifier_identities 
-        add constraint FK_ojfilkcwskdvvbggwsnachry2 
-        foreign key (identifier_id) 
-        references mapper.identifier;
-
-    alter table if exists mapper.identifier_identities 
         add constraint FK_mf2dsc2dxvsa9mlximsct7uau 
         foreign key (match_id) 
         references mapper.match;
+
+    alter table if exists mapper.identifier_identities 
+        add constraint FK_ojfilkcwskdvvbggwsnachry2 
+        foreign key (identifier_id) 
+        references mapper.identifier;
 
     alter table if exists mapper.match_host 
         add constraint FK_3unhnjvw9xhs9l3ney6tvnioq 

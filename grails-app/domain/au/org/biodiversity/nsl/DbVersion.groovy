@@ -25,7 +25,6 @@ class DbVersion {
     Integer version
 
     static mapping = {
-        version false
     }
 
     static constraints = {
