@@ -24,6 +24,8 @@ class MappingService {
     def grailsApplication
 
     Host preferredHost
+    String protocol
+
     // We cache the host/context prefix length to try and speed up the matching of URLs to identity
     private Integer fullPrefixLength = null
     private Integer relPrefixLength = null
@@ -33,6 +35,13 @@ class MappingService {
             preferredHost = Host.findByPreferred(true)
         }
         return preferredHost
+    }
+
+    private defaultProtocol() {
+        if(!protocol){
+            protocol  = grailsApplication.config.mapper.defaultProtocol
+        }
+        return protocol
     }
 
     @Timed
@@ -52,7 +61,7 @@ class MappingService {
     String makePrefLink(Match m) {
         Host host = getPreferredHost()
         if (host) {
-            return "https://${host.hostName}/${encodeParts(m.uri)}"
+            return "${defaultProtocol()}://${host.hostName}/${encodeParts(m.uri)}"
         } else {
             String resolverUrl = grailsApplication.config.mapper.resolverURL
             return "${resolverUrl}/${encodeParts(m.uri)}"
@@ -64,7 +73,7 @@ class MappingService {
         List<Map> links = []
         ident.identities.findAll { Match m -> !m.deprecated }.each { Match m ->
             m.hosts.each { Host host ->
-                links << [link: "https://${host.hostName}/${encodeParts(m.uri)}", resourceCount: m.identifiers.size(), preferred: host.preferred && m.id == preferred.id]
+                links << [link: "${defaultProtocol()}://${host.hostName}/${encodeParts(m.uri)}", resourceCount: m.identifiers.size(), preferred: host.preferred && m.id == preferred.id]
             }
         }
         links.sort { a, b ->
