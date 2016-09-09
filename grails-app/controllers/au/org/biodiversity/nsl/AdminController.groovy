@@ -29,10 +29,13 @@ import static org.springframework.http.HttpStatus.CONFLICT
 import static org.springframework.http.HttpStatus.FORBIDDEN
 import static org.springframework.http.HttpStatus.NOT_FOUND
 
+//todo clean up rest calls so they aren't all gets - use put/delete/post
+//todo make sure operations are consistent even if there are multiple calls for the same operation like add identifier
 @Transactional
 class AdminController {
 
     def grailsApplication
+    def mappingService
 
     @SuppressWarnings("GroovyUnusedDeclaration")
     static responseFormats = ['json']
@@ -56,6 +59,8 @@ class AdminController {
         [stats: stats]
     }
 
+    //todo make a put
+    //todo make a synchronized operation or trap late save errors
     @RequiresRoles('admin')
     def addIdentifier(String nameSpace, String objectType, Long idNumber) {
         log.debug "Add identifier $nameSpace, $objectType, $idNumber"
@@ -76,7 +81,7 @@ class AdminController {
                 match.save()
             }
             render(contentType: 'application/json') {
-                [success: 'Identity saved with default uri.', identity: identifier]
+                [success: 'Identity saved with default uri.', identity: identifier.id, preferredURI: mappingService.makePrefLink(identifier.preferredUri)]
             }
         } else {
             render(contentType: 'application/json') {
@@ -87,6 +92,8 @@ class AdminController {
         }
     }
 
+    //todo make a delete rest call
+    //todo make it synchronised
     @RequiresRoles('admin')
     def deleteIdentifier(String nameSpace, String objectType, Long idNumber, String reason) {
         log.debug "Delete identifier $nameSpace, $objectType, $idNumber"
@@ -103,6 +110,7 @@ class AdminController {
         }
     }
 
+    //todo make a put operation
     @RequiresRoles('admin')
     def addHost(String hostname) {
         Host host = Host.findByHostName(hostname)
@@ -115,6 +123,7 @@ class AdminController {
         }
     }
 
+    //todo make a post operation
     @RequiresRoles('admin')
     def setPreferredHost(String hostname) {
         Host host = Host.findByHostName(hostname)
@@ -134,6 +143,7 @@ class AdminController {
         render(contentType: 'application/json') { [success: 'Preferred host set.', host: host] }
     }
 
+    //todo make a put operation
     @RequiresRoles('admin')
     def addURI(String nameSpace, String objectType, Long idNumber, String uri) {
         Identifier identifier = exists(nameSpace, objectType, idNumber)
@@ -157,6 +167,7 @@ class AdminController {
         render(contentType: 'application/json') { [error: "Identifier doesn't exist.", params: params] }
     }
 
+    //todo make a put operation
     @RequiresRoles('admin')
     def addIdentityToURI(String nameSpace, String objectType, Long idNumber, String uri) {
         Identifier identifier = exists(nameSpace, objectType, idNumber)
@@ -174,6 +185,7 @@ class AdminController {
         render(contentType: 'application/json') { [error: "Identifier doesn't exist.", params: params] }
     }
 
+    //todo make a delete operation
     @RequiresRoles('admin')
     def removeIdentityFromURI(String nameSpace, String objectType, Long idNumber, String uri) {
         Identifier identifier = exists(nameSpace, objectType, idNumber)
@@ -203,6 +215,7 @@ class AdminController {
      * @param toIdNumber
      * @return
      */
+    //todo make a post operation
     @RequiresRoles('admin')
     def moveIdentity(String fromNameSpace, String fromObjectType, Long fromIdNumber, String toNameSpace, String toObjectType, Long toIdNumber) {
         Identifier from = exists(fromNameSpace, fromObjectType, fromIdNumber)
@@ -275,6 +288,7 @@ order BY i.id_number) to STDOUT WITH CSV HEADER"""
         render(file: outputFile, fileName: outputFile.name, contentType: 'text/csv')
     }
 
+    //todo make a post operation
     @RequiresRoles('admin')
     def addNslShard(String name, String baseURL) {
         if (grailsApplication.config.mapper.shards[name]) {
