@@ -9,4 +9,4 @@ ALTER TABLE mapper.identifier
   ADD CONSTRAINT unique_name_space UNIQUE (version_number, id_number, object_type, name_space);
 
 -- version
-INSERT INTO mapper.db_version (id, version) VALUES (1, 5);
+update mapper.db_version set version = 5 where id = 1;
