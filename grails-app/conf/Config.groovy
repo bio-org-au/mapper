@@ -1,3 +1,4 @@
+import org.apache.log4j.DailyRollingFileAppender
 /*
     Copyright 2015 Australian National Botanic Gardens
 
@@ -114,11 +115,51 @@ environments {
 
 // log4j configuration
 log4j.main = {
-    // Example of changing the log pattern for the default console appender:
-    //
-    //appenders {
-    //    console name:'stdout', layout:pattern(conversionPattern: '%c{2} %m%n')
-    //}
+    root {
+        warn 'dailyFileAppender'
+    }
+
+    appenders {
+        appender new DailyRollingFileAppender(
+                name: 'dailyFileAppender',
+                append: true,
+                datePattern: "'.'yyyy-MM-dd",
+                fileName: (System.getProperty('catalina.base') ?: 'target') + "/logs/nsl-mapper.log",
+                layout: pattern(conversionPattern: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%5p] %c:%L %x - %m%n')
+        )
+
+        console name: "stdout",
+                layout: pattern(conversionPattern: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%5p] %c:%L %x - %m%n')
+
+    }
+
+    environments {
+        development {
+            root {
+                info 'stdout', 'dailyFileAppender'//, 'slackAppender'
+            }
+        }
+
+        test {
+            root {
+                warn 'stdout'
+            }
+        }
+
+        production {
+            appenders {
+                'null' name: "stacktrace"
+            }
+
+            root {
+                info 'dailyFileAppender'
+            }
+        }
+    }
+
+    //uncomment to log sql with parameters
+//    trace 'org.hibernate.type.descriptor.sql.BasicBinder'
+//    debug 'org.hibernate.SQL'
 
     error 'org.codehaus.groovy.grails.web.servlet',        // controllers
             'org.codehaus.groovy.grails.web.pages',          // GSP

@@ -55,6 +55,7 @@
         reason_deleted varchar(255),
         updated_at timestamp with time zone,
         updated_by varchar(255),
+        version_number int8,
         primary key (id)
     );
 
@@ -79,7 +80,7 @@
     );
 
     alter table if exists mapper.identifier 
-        add constraint unique_name_space  unique (id_number, object_type, name_space);
+        add constraint unique_name_space  unique (version_number, id_number, object_type, name_space);
 
     create index identifier_index on mapper.identifier (id_number, name_space, object_type);
 

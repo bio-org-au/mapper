@@ -26,6 +26,7 @@ class Identifier {
     String nameSpace
     String objectType
     Long idNumber
+    Long versionNumber
     Boolean deleted = false
     String reasonDeleted
     Timestamp updatedAt
@@ -49,11 +50,12 @@ class Identifier {
     }
 
     static constraints = {
-        nameSpace unique: ['objectType', 'idNumber']
+        nameSpace unique: ['objectType', 'idNumber', 'versionNumber']
         reasonDeleted nullable: true
         updatedAt nullable: true
         updatedBy nullable: true
         preferredUri nullable: true
+        versionNumber nullable: true
     }
 
     def beforeInsert() {
@@ -68,11 +70,14 @@ class Identifier {
 
     @Override
     String toString() {
-        "$id: $nameSpace, $objectType, $idNumber"
+        "$id: $nameSpace, $objectType, $idNumber, $versionNumber"
     }
 
     String toUrn() {
-        "$objectType/$nameSpace/$idNumber"
+        if(versionNumber) {
+            return "$objectType/$versionNumber/$idNumber"
+        }
+        return "$objectType/$nameSpace/$idNumber"
     }
 
 }

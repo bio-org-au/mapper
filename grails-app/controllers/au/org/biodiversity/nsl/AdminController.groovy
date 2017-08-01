@@ -18,6 +18,7 @@ package au.org.biodiversity.nsl
 
 import grails.transaction.Transactional
 import groovy.sql.Sql
+import groovy.transform.Synchronized
 import org.apache.shiro.authz.annotation.RequiresRoles
 import org.postgresql.PGConnection
 import org.postgresql.copy.CopyManager
@@ -25,12 +26,8 @@ import org.springframework.validation.Errors
 import org.springframework.validation.FieldError
 import java.sql.Connection
 
-import static org.springframework.http.HttpStatus.CONFLICT
-import static org.springframework.http.HttpStatus.FORBIDDEN
 import static org.springframework.http.HttpStatus.NOT_FOUND
 
-//todo clean up rest calls so they aren't all gets - use put/delete/post
-//todo make sure operations are consistent even if there are multiple calls for the same operation like add identifier
 @Transactional
 class AdminController {
 
@@ -39,6 +36,22 @@ class AdminController {
 
     @SuppressWarnings("GroovyUnusedDeclaration")
     static responseFormats = ['json']
+
+    //todo once gets are no longer used remove gets where a better option exists
+    static allowedMethods = [
+            addIdentifier        : ["GET", "PUT"],
+            deleteIdentifier     : ["GET", "DELETE"],
+            addHost              : ["GET", "PUT"],
+            setPreferredHost     : ["GET", "POST"],
+            addURI               : ["GET", "PUT"],
+            addIdentityToURI     : ["GET", "PUT"],
+            removeIdentityFromURI: ["GET", "DELETE"],
+            moveIdentity         : ["GET", "POST"],
+            export               : ["GET"],
+            identifier           : ["GET"],
+            uri                  : ["GET"]
+
+    ]
 
     private Sql getNSL() {
         String dbUrl = grailsApplication.config.dataSource.url
@@ -59,12 +72,11 @@ class AdminController {
         [stats: stats]
     }
 
-    //todo make a put
-    //todo make a synchronized operation or trap late save errors
     @RequiresRoles('admin')
-    def addIdentifier(String nameSpace, String objectType, Long idNumber) {
-        log.debug "Add identifier $nameSpace, $objectType, $idNumber"
-        Identifier exists = exists(nameSpace, objectType, idNumber)
+    @Synchronized
+    def addIdentifier(String nameSpace, String objectType, Long idNumber, Long versionNumber) {
+        log.debug "Add identifier $nameSpace, $objectType, $idNumber, $versionNumber"
+        Identifier exists = exists(nameSpace, objectType, idNumber, versionNumber)
         if (exists) {
             render(contentType: 'application/json') { [error: 'Identity already exists.', identity: exists] }
             return
@@ -92,12 +104,11 @@ class AdminController {
         }
     }
 
-    //todo make a delete rest call
-    //todo make it synchronised
     @RequiresRoles('admin')
-    def deleteIdentifier(String nameSpace, String objectType, Long idNumber, String reason) {
+    @Synchronized
+    def deleteIdentifier(String nameSpace, String objectType, Long idNumber, Long versionNumber, String reason) {
         log.debug "Delete identifier $nameSpace, $objectType, $idNumber"
-        Identifier identifier = exists(nameSpace, objectType, idNumber)
+        Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
             identifier.deleted = true
             identifier.reasonDeleted = reason
@@ -110,7 +121,6 @@ class AdminController {
         }
     }
 
-    //todo make a put operation
     @RequiresRoles('admin')
     def addHost(String hostname) {
         Host host = Host.findByHostName(hostname)
@@ -123,7 +133,6 @@ class AdminController {
         }
     }
 
-    //todo make a post operation
     @RequiresRoles('admin')
     def setPreferredHost(String hostname) {
         Host host = Host.findByHostName(hostname)
@@ -143,10 +152,9 @@ class AdminController {
         render(contentType: 'application/json') { [success: 'Preferred host set.', host: host] }
     }
 
-    //todo make a put operation
     @RequiresRoles('admin')
-    def addURI(String nameSpace, String objectType, Long idNumber, String uri) {
-        Identifier identifier = exists(nameSpace, objectType, idNumber)
+    def addURI(String nameSpace, String objectType, Long idNumber, Long versionNumber, String uri) {
+        Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
             Match m = Match.findByUri(uri)
             if (m) {
@@ -167,10 +175,9 @@ class AdminController {
         render(contentType: 'application/json') { [error: "Identifier doesn't exist.", params: params] }
     }
 
-    //todo make a put operation
     @RequiresRoles('admin')
-    def addIdentityToURI(String nameSpace, String objectType, Long idNumber, String uri) {
-        Identifier identifier = exists(nameSpace, objectType, idNumber)
+    def addIdentityToURI(String nameSpace, String objectType, Long idNumber, Long versionNumber, String uri) {
+        Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
             Match m = Match.findByUri(uri)
             if (m) {
@@ -185,10 +192,9 @@ class AdminController {
         render(contentType: 'application/json') { [error: "Identifier doesn't exist.", params: params] }
     }
 
-    //todo make a delete operation
     @RequiresRoles('admin')
-    def removeIdentityFromURI(String nameSpace, String objectType, Long idNumber, String uri) {
-        Identifier identifier = exists(nameSpace, objectType, idNumber)
+    def removeIdentityFromURI(String nameSpace, String objectType, Long idNumber, Long versionNumber, String uri) {
+        Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
             Match m = Match.findByUri(uri)
             if (m) {
@@ -215,11 +221,11 @@ class AdminController {
      * @param toIdNumber
      * @return
      */
-    //todo make a post operation
     @RequiresRoles('admin')
-    def moveIdentity(String fromNameSpace, String fromObjectType, Long fromIdNumber, String toNameSpace, String toObjectType, Long toIdNumber) {
-        Identifier from = exists(fromNameSpace, fromObjectType, fromIdNumber)
-        Identifier to = exists(toNameSpace, toObjectType, toIdNumber)
+    def moveIdentity(String fromNameSpace, String fromObjectType, Long fromIdNumber, Long fromVersionNumber,
+                     String toNameSpace, String toObjectType, Long toIdNumber, Long toVersionNumber) {
+        Identifier from = exists(fromNameSpace, fromObjectType, fromIdNumber, fromVersionNumber)
+        Identifier to = exists(toNameSpace, toObjectType, toIdNumber, toVersionNumber)
         if (to && from) {
             log.debug "moving identities from $from to $to"
             List<Match> fromMatches = from.identities.collect { it }
@@ -239,8 +245,8 @@ class AdminController {
         }
     }
 
-    def identifier(String nameSpace, String objectType, Long idNumber) {
-        Identifier identifier = exists(nameSpace, objectType, idNumber)
+    def identifier(String nameSpace, String objectType, Long idNumber, Long versionNumber) {
+        Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
             respond identifier
         } else {
@@ -280,7 +286,7 @@ order BY i.id_number) to STDOUT WITH CSV HEADER"""
 
         Sql sql = getNSL()
         Connection connection = sql.getConnection()
-        connection.setAutoCommit(false);
+        connection.setAutoCommit(false)
         CopyManager copyManager = ((PGConnection) connection).getCopyAPI()
         copyManager.copyOut(query, new FileWriter(outputFile))
         sql.close()
@@ -288,92 +294,13 @@ order BY i.id_number) to STDOUT WITH CSV HEADER"""
         render(file: outputFile, fileName: outputFile.name, contentType: 'text/csv')
     }
 
-    //todo make a post operation
-    @RequiresRoles('admin')
-    def addNslShard(String name, String baseURL) {
-        if (grailsApplication.config.mapper.shards[name]) {
-            String error = "Add NSL Shard: $name already exists"
-            log.error error
-            respond(error, status: CONFLICT)
-        } else {
-            // update the running config
-            grailsApplication.config.mapper.shards.put(name, [
-                    baseURL: (baseURL),
-                    service: [
-                            html: { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            json: { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            xml : { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            rdf : { ident ->
-                                String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
-                                "sparql/?query=${url}"
-                            }
-                    ]
-            ])
-            //now edit the config file to add the shard
-            //note we can't use config object to output config because of closures
-            List<String> configLocations = grailsApplication.config.grails.config.locations
-            if (configLocations.size() == 1) {
-                URL configFileURL = new URL(configLocations[0] as String)
-                File configFile = new File(configFileURL.file)
-                String config = configFile.text
-                int shardEnd = getShardEnd(config)
-                String editedConfig = config.substring(0, shardEnd) + makeShardString(name, baseURL) + config.substring(shardEnd)
-                configFile.write(editedConfig)
-            }
-        }
-    }
-
-    private static GString makeShardString(String name, String baseURL) {
-        return """,
-$name: [
-        baseURL: ('$baseURL'),
-        service: [
-                html: { ident ->
-                    "services/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}"
-                },
-                json: { ident ->
-                    "services/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}"
-                },
-                xml : { ident ->
-                    "services/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}"
-                },
-                rdf : { ident ->
-                    String url = "DESCRIBE <http://biodiversity.org.au/boa/\${ident.objectType}/\${ident.nameSpace}/\${ident.idNumber}>".encodeAsURL()
-                    "sparql/?query=\${url}"
-                }
-        ]
-]"""
-    }
-
-    private static int getShardEnd(String config) {
-        int shardStart = config.indexOf('[', config.lastIndexOf('shards'))
-        int bracketCount = 0
-        int shardEnd = config.findIndexOf(shardStart) { character ->
-            if (character == '[') {
-                ++bracketCount
-            }
-            if (character == ']') {
-                --bracketCount
-            }
-            return bracketCount == 0
-        }
-        return shardEnd
-    }
-
-    private static Identifier exists(String nameSpace, String objectType, Long idNumber) {
-        Identifier.findByNameSpaceAndObjectTypeAndIdNumber(nameSpace, objectType, idNumber)
+    private static Identifier exists(String nameSpace, String objectType, Long idNumber, Long versionNumber) {
+        Identifier.findByNameSpaceAndObjectTypeAndIdNumberAndVersionNumber(nameSpace, objectType, idNumber, versionNumber)
     }
 
     private static String buildErrorString(Errors errors) {
         errors.fieldErrors.collect { FieldError e ->
             "${e.field} cannot be ${e.rejectedValue}."
         }.join(' ')
-
     }
 }

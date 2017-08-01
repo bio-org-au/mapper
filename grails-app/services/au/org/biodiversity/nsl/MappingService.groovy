@@ -25,27 +25,53 @@ class MappingService {
 
     Host preferredHost
     String protocol
+    private Map formats = null
 
     // We cache the host/context prefix length to try and speed up the matching of URLs to identity
     private Integer fullPrefixLength = null
     private Integer relPrefixLength = null
 
     private getPreferredHost() {
-        if(!preferredHost) {
+        if (!preferredHost) {
             preferredHost = Host.findByPreferred(true)
         }
         return preferredHost
     }
 
     private defaultProtocol() {
-        if(!protocol){
-            protocol  = grailsApplication.config.mapper.defaultProtocol
+        if (!protocol) {
+            protocol = grailsApplication.config.mapper.defaultProtocol
         }
         return protocol
     }
 
+    private Map getFormats() {
+        if (!formats) {
+            formats = grailsApplication.config.mapper.format
+        }
+        return formats
+    }
+
     @Timed
     String makeCurrentLink(Identifier ident, String format = 'html') {
+
+        Map formats = getFormats()
+        if (!formats) {
+            return oldMakeCurrentLink(ident, format)
+        }
+
+        if (formats.containsKey(format)) {
+            return formats[format].resolver.call(ident)
+        }
+
+        if (formats.containsKey('html')) {
+            return formats['html'].resolver.call(ident)
+        }
+
+        return ''
+    }
+
+    String oldMakeCurrentLink(Identifier ident, String format = 'html') {
         String shardHostname = grailsApplication.config.mapper.shards[ident.nameSpace].baseURL
 
         Closure serviceClosure = grailsApplication.config.mapper.shards[ident.nameSpace].service[format] as Closure
