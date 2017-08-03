@@ -32,6 +32,7 @@ import spock.lang.Specification
 @TestMixin(HibernateTestMixin)
 @Domain([Identifier, Match, Host])
 class AdminControllerSpec extends Specification {
+    MappingService mappingService
 
     def setup() {
 
@@ -51,7 +52,7 @@ class AdminControllerSpec extends Specification {
         Host.deleteAll(Host.list())
         Identifier.deleteAll((Identifier.list()))
         Match.deleteAll(Match.list())
-        MappingService mappingService = new MappingService()
+        mappingService = new MappingService()
         mappingService.grailsApplication = [config: makeAConfig()]
         controller.mappingService = mappingService
     }
@@ -216,12 +217,10 @@ class AdminControllerSpec extends Specification {
         response.text.contains('URI already exists.')
     }
 
-    void "test add identity to uri"() {
+    void "test add/remove identity to uri"() {
         when:
         Identifier i1 = new Identifier(nameSpace: 'apni', objectType: 'name', idNumber: 23)
         i1.save()
-        Identifier i2 = new Identifier(nameSpace: 'apni', objectType: 'name', idNumber: 32)
-        i2.save()
         Match m1 = new Match(uri: 'one')
         m1.save()
         Match m2 = new Match(uri: 'two')
@@ -229,7 +228,6 @@ class AdminControllerSpec extends Specification {
 
         then:
         i1.identities == null
-        i2.identities == null
         m1.identifiers == null
         m2.identifiers == null
 
@@ -239,7 +237,6 @@ class AdminControllerSpec extends Specification {
 
         println response.text
         i1.refresh()
-        i2.refresh()
         m1.refresh()
         m2.refresh()
 
@@ -249,7 +246,6 @@ class AdminControllerSpec extends Specification {
         m1.identifiers?.size() == 1
         i1.identities?.first() == m1
         m1.identifiers?.first() == i1
-        i2.identities?.empty
         m2.identifiers?.empty
 
         when:
@@ -258,7 +254,6 @@ class AdminControllerSpec extends Specification {
         controller.addIdentityToURI('apni', 'name', 23, null, 'two')
         println response.text
         i1.refresh()
-        i2.refresh()
         m1.refresh()
         m2.refresh()
 
@@ -271,7 +266,6 @@ class AdminControllerSpec extends Specification {
         i1.identities?.contains(m2)
         m1.identifiers.first() == i1
         m2.identifiers.first() == i1
-        i2.identities?.empty
 
         when: "the identity doesn't exist return an error"
         response.reset()
@@ -291,9 +285,28 @@ class AdminControllerSpec extends Specification {
         then:
         response.text.contains("URI doesn't exist.")
 
+        when: 'I remove i1 from m2'
+        response.reset()
+        String link = mappingService.makePrefLink(m2)
+        println "removing $link"
+        controller.removeIdentityFromURI('apni', 'name', 23, null, link)
+
+        println response.text
+        i1.refresh()
+        m1.refresh()
+        m2.refresh()
+
+        then:
+        response.text.contains('Identity removed from URI.')
+        i1.identities?.size() == 1
+        m1.identifiers?.size() == 1
+        i1.identities?.first() == m1
+        m1.identifiers?.first() == i1
+        m2.identifiers?.empty
+
     }
 
-    private static ConfigObject makeAConfig() {
+        private static ConfigObject makeAConfig() {
         ConfigSlurper slurper = new ConfigSlurper('test')
         String configString = '''
 grails.serverURL = 'http://localhost:7070/nsl-mapper'
