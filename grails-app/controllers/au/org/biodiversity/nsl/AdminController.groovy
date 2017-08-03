@@ -196,7 +196,7 @@ class AdminController {
     def removeIdentityFromURI(String nameSpace, String objectType, Long idNumber, Long versionNumber, String uri) {
         Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
-            String muri = mappingService.extractMatchStringFromResolverURI(uri)
+            String muri = mappingService.extractMatchStringFromResolverURI(uri.decodeURL())
             Match m = identifier.identities.find { Match m ->
                 m.uri == muri
             }

@@ -287,7 +287,7 @@ class AdminControllerSpec extends Specification {
 
         when: 'I remove i1 from m2'
         response.reset()
-        String link = mappingService.makePrefLink(m2)
+        String link = mappingService.makePrefLink(m2).encodeAsURL()
         println "removing $link"
         controller.removeIdentityFromURI('apni', 'name', 23, null, link)
 
