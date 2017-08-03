@@ -196,14 +196,21 @@ class AdminController {
     def removeIdentityFromURI(String nameSpace, String objectType, Long idNumber, Long versionNumber, String uri) {
         Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
-            Match m = Match.findByUri(uri)
-            if (m) {
-                identifier.removeFromIdentities(m)
-                identifier.save()
-                render(contentType: 'application/json') {
-                    [success: 'Identity removed from URI.', identity: identifier]
+            Host h = Host.list().find { Host h ->
+                uri.startsWith(h.hostName)
+            }
+            if (h) {
+                Match m = identifier.identities.find { Match m ->
+                    uri == h.hostName + '/' + m.uri
                 }
-                return
+                if (m) {
+                    identifier.removeFromIdentities(m)
+                    identifier.save()
+                    render(contentType: 'application/json') {
+                        [success: 'Identity removed from URI.', identity: identifier]
+                    }
+                    return
+                }
             }
             render(contentType: 'application/json') { [error: "URI doesn't exist.", uri: uri] }
             return

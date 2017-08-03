@@ -51,25 +51,7 @@ mapper {
                                 "foa/taxa/${ident.idNumber}/summary"
                             }
                     ]
-            ],
-blah: [
-        baseURL: ('http://blahg.org'),
-        service: [
-                html: { ident ->
-                    "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                },
-                json: { ident ->
-                    "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                },
-                xml : { ident ->
-                    "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                },
-                rdf : { ident ->
-                    String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
-                    "sparql/?query=${url}"
-                }
-        ]
-]]
+            ]]
 }
 
 api.auth = [

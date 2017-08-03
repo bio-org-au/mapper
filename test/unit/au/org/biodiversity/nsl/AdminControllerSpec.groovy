@@ -51,6 +51,9 @@ class AdminControllerSpec extends Specification {
         Host.deleteAll(Host.list())
         Identifier.deleteAll((Identifier.list()))
         Match.deleteAll(Match.list())
+        MappingService mappingService = new MappingService()
+        mappingService.grailsApplication = [config: makeAConfig()]
+        controller.mappingService = mappingService
     }
 
     def cleanup() {
@@ -81,7 +84,7 @@ class AdminControllerSpec extends Specification {
         then: "host should exist and not be preferred"
         response.text.contains('Host saved.')
         Host.count() == 2
-        Host.findByHostName('biodiversity.org.au')?.preferred == false
+        !Host.findByHostName('biodiversity.org.au')?.preferred
         Host.findAllByPreferred(true).size() == 1
 
         when: "we set the second host as preferred"
@@ -102,7 +105,7 @@ class AdminControllerSpec extends Specification {
         controller.addHost('biodiversity.org.au')
         controller.setPreferredHost('id.biodiversity.org.au')
         response.reset()
-        controller.addIdentifier('apni', 'name', 12345)
+        controller.addIdentifier('apni', 'name', 12345, null)
 
         println response.text
 
@@ -133,7 +136,7 @@ class AdminControllerSpec extends Specification {
 
         when: "we try to add the same identifier it fails"
         response.reset()
-        controller.addIdentifier('apni', 'name', 12345)
+        controller.addIdentifier('apni', 'name', 12345, null)
 
         println response.text
 
@@ -142,7 +145,7 @@ class AdminControllerSpec extends Specification {
 
         when: "we try to add an invalid identity if fails."
         response.reset()
-        controller.addIdentifier('apni', 'name', null)
+        controller.addIdentifier('apni', 'name', null, null)
 
         println response.text
 
@@ -152,7 +155,7 @@ class AdminControllerSpec extends Specification {
 
         when: "We can add a second valid Identifier."
         response.reset()
-        controller.addIdentifier('apni', 'name', 12346)
+        controller.addIdentifier('apni', 'name', 12346, null)
 
         println response.text
 
@@ -177,7 +180,7 @@ class AdminControllerSpec extends Specification {
 
     void "test add URI"() {
         when: "we add a unique uri to an identifier it should work"
-        controller.addIdentifier('apni', 'name', 1)
+        controller.addIdentifier('apni', 'name', 1, null)
 
         then:
         response.text.contains('Identity saved with default uri.')
@@ -186,7 +189,7 @@ class AdminControllerSpec extends Specification {
 
         when:
         response.reset()
-        controller.addURI('apni', 'name', 1, 'fred')
+        controller.addURI('apni', 'name', 1, null, 'fred')
 
         println response.text
 
@@ -205,7 +208,7 @@ class AdminControllerSpec extends Specification {
 
         when: "we try to add the same uri again it won't work"
         response.reset()
-        controller.addURI('apni', 'name', 1, 'fred')
+        controller.addURI('apni', 'name', 1, null, 'fred')
 
         println response.text
 
@@ -232,7 +235,7 @@ class AdminControllerSpec extends Specification {
 
         when:
 
-        controller.addIdentityToURI('apni', 'name', 23, 'one')
+        controller.addIdentityToURI('apni', 'name', 23, null, 'one')
 
         println response.text
         i1.refresh()
@@ -252,7 +255,7 @@ class AdminControllerSpec extends Specification {
         when:
         response.reset()
 
-        controller.addIdentityToURI('apni', 'name', 23, 'two')
+        controller.addIdentityToURI('apni', 'name', 23, null, 'two')
         println response.text
         i1.refresh()
         i2.refresh()
@@ -273,7 +276,7 @@ class AdminControllerSpec extends Specification {
         when: "the identity doesn't exist return an error"
         response.reset()
 
-        controller.addIdentityToURI('apni', 'name', 99, 'two')
+        controller.addIdentityToURI('apni', 'name', 99, null, 'two')
         println response.text
 
         then:
@@ -282,7 +285,7 @@ class AdminControllerSpec extends Specification {
         when: "the uri doesn't exist return an error"
         response.reset()
 
-        controller.addIdentityToURI('apni', 'name', 23, 'blah')
+        controller.addIdentityToURI('apni', 'name', 23, null, 'blah')
         println response.text
 
         then:
@@ -290,86 +293,50 @@ class AdminControllerSpec extends Specification {
 
     }
 
-    void "add NSL Shard should update config"() {
-        when: "we have a mapper config and add a shard"
-        controller.grailsApplication = [config: makeAConfig()]
-        controller.addNslShard('blah', 'http://blahg.org')
-
-        then: "the blah shard is added to the running config"
-        println controller.grailsApplication.config
-        controller.grailsApplication.config.mapper.shards.containsKey('blah')
-        controller.grailsApplication.config.mapper.shards.blah.service.html([objectType: 'name', nameSpace: 'fred', idNumber: 2345]) == 'services/name/fred/2345'
-
-        when: "we re parse the config file"
-        ConfigObject config = slurpTest()
-
-        then: "it works and still has the blah config in it"
-        config.mapper.shards.containsKey('blah')
-        config.mapper.shards.blah.service.html([objectType: 'name', nameSpace: 'fred', idNumber: 2345]) == 'services/name/fred/2345'
-    }
-
-    private static ConfigObject slurpTest() {
-        ConfigSlurper slurper = new ConfigSlurper('test')
-        URL configFileURL = new URL("file:test-nsl-mapper-config.groovy")
-        return slurper.parse(configFileURL)
-    }
-
     private static ConfigObject makeAConfig() {
         ConfigSlurper slurper = new ConfigSlurper('test')
         String configString = '''
-grails.config.locations = ["file:test-nsl-mapper-config.groovy"]
-
-grails.serverURL = 'http://localhost:7070/nsl-mapper\'
+grails.serverURL = 'http://localhost:7070/nsl-mapper'
 
 mapper {
-    resolverURL = 'http://localhost:7070/nsl-mapper/boa\'
+    resolverURL = 'http://localhost:7070/nsl-mapper/boa'
     contextExtension = 'boa' //extension to the context path (after nsl-mapper).
+    defaultProtocol = 'http'
+    
+    defaultResolver = { ident ->
+        Map serviceHosts = [
+                apni: 'http://localhost:8080',  // .../au/vascular
+                ausmoss: 'http://localhost:8080', // .../au/moss
+                lichen: 'http://localhost:8080',  // .../au/lichen
+                foa: 'http://biodiversity.org.au/'
+        ]
+        String host = serviceHosts[ident.nameSpace]
+        if (ident.objectType == 'tree') {
+            return "${host}/services/${ident.objectType}/${ident.versionNumber}/${ident.idNumber}"
+        }
+        if(ident.nameSpace == "foa"){
+            return "${host}foa/taxa/${ident.idNumber}/summary"
+        }
+        return "${host}/services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
+    }
 
-    shards = [
-            apni   : [
-                    baseURL: 'http://localhost:8080',
-                    service: [
-                            html: { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            json: { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            xml : { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            rdf : { ident ->
-                                String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
-                                "sparql/?query=${url}"
-                            }
-                    ]
+    format = [
+            html: [
+                    resolver: defaultResolver
             ],
-            ausmoss: [
-                    baseURL: 'http://localhost:8080',
-                    service: [
-                            html: { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            json: { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            xml : { ident ->
-                                "services/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}"
-                            },
-                            rdf : { ident ->
-                                String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
-                                "sparql/?query=${url}"
-                            }
-                    ]
+            json: [
+                    resolver: defaultResolver
             ],
-            foa    : [
-                    baseURL: 'http://biodiversity.org.au/',
-                    service: [
-                            html: { ident ->
-                                "foa/taxa/${ident.idNumber}/summary"
-                            }
-                    ]
-            ]]
+            xml: [
+                    resolver: defaultResolver
+            ],
+            rdf: [
+                    resolver : { ident ->
+                        String url = "DESCRIBE <http://biodiversity.org.au/boa/${ident.objectType}/${ident.nameSpace}/${ident.idNumber}>".encodeAsURL()
+                        "sparql/?query=${url}"
+                    }
+            ]
+    ]
 }
 
 api.auth = [
@@ -380,8 +347,6 @@ api.auth = [
         ]
 ]
 '''
-        File testConfigFile = new File('test-nsl-mapper-config.groovy')
-        testConfigFile.write(configString)
         return slurper.parse(configString)
     }
 }
