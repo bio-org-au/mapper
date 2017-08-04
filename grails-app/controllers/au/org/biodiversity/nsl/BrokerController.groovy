@@ -36,7 +36,7 @@ class BrokerController {
     def index() {
         String requested = (WebUtils.getForwardURI(request) ?: request.getAttribute('javax.servlet.error.request_uri'))
         requested = requested.decodeURL()
-        if(request.queryString) {
+        if (request.queryString) {
             requested += "?${request.queryString}"
         }
 
@@ -82,8 +82,7 @@ class BrokerController {
                     //do a 301 to the preferred URI which will do a 303 to the resource
                     response.status = 301
                     //the preferred URI will be the default identifier URN e.g. name/apni/12345
-                    Match preferred = mappingService.getPreferredLink(identifier)
-                    String link = mappingService.makePrefLink(preferred)
+                    String link = mappingService.makePrefLink(identifier)
                     if (api) {
                         link += api
                     } else if (formatExtension) {
@@ -185,18 +184,15 @@ class BrokerController {
     def preferredLink(String nameSpace, String objectType, Long idNumber) {
         Identifier identifier = Identifier.findByNameSpaceAndObjectTypeAndIdNumber(nameSpace, objectType, idNumber)
         if (identifier) {
-            Match preferred = mappingService.getPreferredLink(identifier)
-            if (preferred) {
-                String link = mappingService.makePrefLink(preferred)
-                log.info "Preferred link to $objectType/$nameSpace/$idNumber is $link"
-                return withFormat {
-                    html([link: link])
-                    json {
-                        render(contentType: 'application/json') { [link: link] }
-                    }
-                    xml {
-                        render([link: link] as XML)
-                    }
+            String link = mappingService.makePrefLink(identifier)
+            log.info "Preferred link to $objectType/$nameSpace/$idNumber is $link"
+            return withFormat {
+                html([link: link])
+                json {
+                    render(contentType: 'application/json') { [link: link] }
+                }
+                xml {
+                    render([link: link] as XML)
                 }
             }
         }

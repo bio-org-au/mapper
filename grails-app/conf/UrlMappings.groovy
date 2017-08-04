@@ -23,12 +23,13 @@ class UrlMappings {
 
         "/links/$nameSpace/$objectType/$idNumber"(controller: 'broker', action: 'links', method: "GET")
 
+        "/admin/moveIdentity"(controller: 'admin', action: 'moveIdentityPost', method: 'POST')
+
         "/$controller/$action?/$id?(.$format)?"{
             constraints {
                 // apply constraints here
             }
         }
-
 
         "/"(view:"/index")
         "500"(controller: 'error', action: 'index')

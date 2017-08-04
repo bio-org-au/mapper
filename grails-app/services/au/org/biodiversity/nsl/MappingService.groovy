@@ -94,6 +94,11 @@ class MappingService {
         }
     }
 
+    @Timed
+    String makePrefLink(Identifier identifier) {
+        return makePrefLink(getPreferredLink(identifier))
+    }
+
     List<Map> findMatchingLinks(Identifier ident) {
         Match preferred = getPreferredLink(ident)
         List<Map> links = []

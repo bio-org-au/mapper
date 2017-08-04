@@ -20,6 +20,7 @@ import grails.transaction.Transactional
 import groovy.sql.Sql
 import groovy.transform.Synchronized
 import org.apache.shiro.authz.annotation.RequiresRoles
+import org.codehaus.groovy.grails.web.json.JSONObject
 import org.postgresql.PGConnection
 import org.postgresql.copy.CopyManager
 import org.springframework.validation.Errors
@@ -39,14 +40,15 @@ class AdminController {
 
     //todo once gets are no longer used remove gets where a better option exists
     static allowedMethods = [
-            addIdentifier        : ["GET", "PUT"],
-            deleteIdentifier     : ["GET", "DELETE"],
-            addHost              : ["GET", "PUT"],
-            setPreferredHost     : ["GET", "POST"],
-            addURI               : ["GET", "PUT"],
-            addIdentityToURI     : ["GET", "PUT"],
-            removeIdentityFromURI: ["GET", "DELETE"],
-            moveIdentity         : ["GET", "POST"],
+            addIdentifier        : ["GET","PUT"],
+            deleteIdentifier     : ["GET","DELETE"],
+            addHost              : ["GET","PUT"],
+            setPreferredHost     : ["PUT"],
+            addURI               : ["GET","PUT"],
+            addIdentityToURI     : ["GET","PUT"],
+            removeIdentityFromURI: ["GET","DELETE"],
+            moveIdentity         : ["GET"],
+            moveIdentityPost     : ["POST"],
             export               : ["GET"],
             identifier           : ["GET"],
             uri                  : ["GET"]
@@ -78,7 +80,9 @@ class AdminController {
         log.debug "Add identifier $nameSpace, $objectType, $idNumber, $versionNumber"
         Identifier exists = exists(nameSpace, objectType, idNumber, versionNumber)
         if (exists) {
-            render(contentType: 'application/json') { [error: 'Identity already exists.', identity: exists] }
+            render(contentType: 'application/json') {
+                [success: 'Identity exists.', identity: exists.id, preferredURI: mappingService.makePrefLink(exists)]
+            }
             return
         }
         Identifier identifier = new Identifier(nameSpace: nameSpace, objectType: objectType, idNumber: idNumber)
@@ -214,6 +218,23 @@ class AdminController {
         render(contentType: 'application/json') { [error: "Identifier doesn't exist.", params: params] }
     }
 
+
+    @RequiresRoles('admin')
+    def moveIdentity(String fromNameSpace, String fromObjectType, Long fromIdNumber, Long fromVersionNumber,
+                     String toNameSpace, String toObjectType, Long toIdNumber, Long toVersionNumber) {
+        Identifier from = exists(fromNameSpace, fromObjectType, fromIdNumber, fromVersionNumber)
+        Identifier to = exists(toNameSpace, toObjectType, toIdNumber, toVersionNumber)
+        moveIdentityFromTo(from, to)
+    }
+
+    @RequiresRoles('admin')
+    def moveIdentityPost() {
+        Map data = jsonObjectToMap(request.JSON as JSONObject)
+        Identifier from = exists(data.fromNameSpace, data.fromObjectType, data.fromIdNumber, data.fromVersionNumber)
+        Identifier to = exists(data.toNameSpace, data.toObjectType, data.toIdNumber, data.toVersionNumber)
+        moveIdentityFromTo(from, to)
+    }
+
     /**
      * move all Match (uris) from one identity to another
      * @param fromNameSpace
@@ -224,16 +245,12 @@ class AdminController {
      * @param toIdNumber
      * @return
      */
-    @RequiresRoles('admin')
-    def moveIdentity(String fromNameSpace, String fromObjectType, Long fromIdNumber, Long fromVersionNumber,
-                     String toNameSpace, String toObjectType, Long toIdNumber, Long toVersionNumber) {
-        Identifier from = exists(fromNameSpace, fromObjectType, fromIdNumber, fromVersionNumber)
-        Identifier to = exists(toNameSpace, toObjectType, toIdNumber, toVersionNumber)
+    private void moveIdentityFromTo(Identifier from, Identifier to) {
+        log.debug "Moving identities from $from to $to"
         if (to && from) {
-            log.debug "moving identities from $from to $to"
             List<Match> fromMatches = from.identities.collect { it }
             fromMatches.each { Match match ->
-                log.debug "Moving $match.uri"
+                log.debug "Moving uri: $match.uri"
                 from.removeFromIdentities(match)
                 to.addToIdentities(match)
             }
@@ -306,4 +323,17 @@ order BY i.id_number) to STDOUT WITH CSV HEADER"""
             "${e.field} cannot be ${e.rejectedValue}."
         }.join(' ')
     }
+
+    private static Map jsonObjectToMap(JSONObject object) {
+        Map map = [:]
+        object.keySet().each { String key ->
+            if (object[key] == JSONObject.NULL) {
+                map.put(key, null)
+            } else {
+                map.put(key, object[key])
+            }
+        }
+        return map
+    }
+
 }
