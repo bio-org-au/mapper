@@ -33,7 +33,6 @@ environments {
             default_schema = 'mapper'
         }
         dataSource {
-            dbCreate = "update"
 
             pooled = true
             driverClassName = "org.postgresql.Driver"
