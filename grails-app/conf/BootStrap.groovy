@@ -26,6 +26,7 @@ class BootStrap {
     def shiroSubjectDAO
     SessionFactory sessionFactory
     DataSource dataSource
+    def grailsApplication
     private static int CURRENT_DB_VERSION = 5
 
     def init = { servletContext ->
@@ -75,6 +76,8 @@ class BootStrap {
                 sql.execute(template.toString()) { isResultSet, result ->
                     if (isResultSet) log.debug result
                 }
+            } else {
+                log.error "The database update script doesn't exist at $updateFile.absolutePath"
             }
         }
         sessionFactory.getCurrentSession().flush()
@@ -94,9 +97,11 @@ class BootStrap {
 
     @SuppressWarnings("GrMethodMayBeStatic")
     private File getUpdateFile(Integer versionNumber) {
-        File file = new File("sql/update-${versionNumber}.sql")
-        log.info "mapper-ddl.sql file path $file.absolutePath"
-        return file
+        def resource = grailsApplication.mainContext.getResource("sql/update-${versionNumber}.sql")
+        if(resource.exists()) {
+            return resource.file
+        }
+        return null
     }
 
 }
