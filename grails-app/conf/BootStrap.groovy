@@ -39,7 +39,7 @@ class BootStrap {
             Sql sql = new Sql(dataSource)
             try {
                 if (!updateToCurrentVersion(sql, [:])) {
-                    log.error "Database is not up to date. Run update script on the DB before restarting."
+                    log.error "Update didn't work, database is not up to date. Run update script on the DB before restarting."
                     throw new Exception('Database not at expected version.')
                 }
             }
@@ -94,7 +94,7 @@ class BootStrap {
 
     @SuppressWarnings("GrMethodMayBeStatic")
     private File getUpdateFile(Integer versionNumber) {
-        File file = new File("web-app/sql/update-${versionNumber}.sql")
+        File file = new File("sql/update-${versionNumber}.sql")
         log.info "mapper-ddl.sql file path $file.absolutePath"
         return file
     }
