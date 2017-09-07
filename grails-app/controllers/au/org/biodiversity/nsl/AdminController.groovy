@@ -34,19 +34,21 @@ class AdminController {
 
     def grailsApplication
     def mappingService
+    def adminService
 
     @SuppressWarnings("GroovyUnusedDeclaration")
     static responseFormats = ['json']
 
     //todo once gets are no longer used remove gets where a better option exists
     static allowedMethods = [
-            addIdentifier        : ["GET","PUT"],
-            deleteIdentifier     : ["GET","DELETE"],
-            addHost              : ["GET","PUT"],
+            addIdentifier        : ["GET", "PUT"],
+            bulkAddIdentifiers   : ["POST"],
+            deleteIdentifier     : ["GET", "DELETE"],
+            addHost              : ["GET", "PUT"],
             setPreferredHost     : ["PUT"],
-            addURI               : ["GET","PUT"],
-            addIdentityToURI     : ["GET","PUT"],
-            removeIdentityFromURI: ["GET","DELETE"],
+            addURI               : ["GET", "PUT"],
+            addIdentityToURI     : ["GET", "PUT"],
+            removeIdentityFromURI: ["GET", "DELETE"],
             moveIdentity         : ["GET"],
             moveIdentityPost     : ["POST"],
             export               : ["GET"],
@@ -75,9 +77,9 @@ class AdminController {
     }
 
     @RequiresRoles('admin')
-    @Synchronized
     def addIdentifier(String nameSpace, String objectType, Long idNumber, Long versionNumber) {
         log.debug "Add identifier $nameSpace, $objectType, $idNumber, $versionNumber"
+
         Identifier exists = exists(nameSpace, objectType, idNumber, versionNumber)
         if (exists) {
             render(contentType: 'application/json') {
@@ -85,26 +87,45 @@ class AdminController {
             }
             return
         }
-        Identifier identifier = new Identifier(nameSpace: nameSpace, objectType: objectType, idNumber: idNumber)
-        Match match = new Match(uri: identifier.toUrn())
-        identifier.addToIdentities(match)
-        identifier.preferredUri = match
-        if (identifier.validate() && match.validate()) {
-            identifier.save(flush: true)
-            Host host = Host.findByPreferred(true)
-            if (host) {
-                match.addToHosts(host)
-                match.save()
-            }
+
+        try {
+            Identifier identifier = adminService.addIdentifier(identMap.nameSpace, identMap.objectType, identMap.idNumber, identMap.versionNumber)
             render(contentType: 'application/json') {
                 [success: 'Identity saved with default uri.', identity: identifier.id, preferredURI: mappingService.makePrefLink(identifier.preferredUri)]
             }
-        } else {
+        } catch (ServiceException e) {
             render(contentType: 'application/json') {
-                [error   : 'Identity is not valid, see errors.',
-                 identity: identifier,
-                 errors  : buildErrorString(identifier.errors) + '\n' + buildErrorString(match.errors)]
+                [error: 'Identity is not valid, see errors.', identity: identifier, errors: e.message]
             }
+        }
+    }
+
+    @RequiresRoles('admin')
+    def bulkAddIdentifiers() {
+        log.debug "Bulk add identifiers"
+        Map data = jsonObjectToMap(request.JSON as JSONObject)
+        if (data && data.containsKey('identifiers')) {
+            List identifiers = []
+            List<String> errors = []
+            List<Map> identities = data.identities
+            for (Map identMap in identities) {
+                try {
+                    Identifier exists = exists(identMap.nameSpace, identMap.objectType, identMap.idNumber, identMap.versionNumber)
+                    if (!exists) {
+                        Identifier identifier = adminService.addIdentifier(identMap.nameSpace, identMap.objectType, identMap.idNumber, identMap.versionNumber)
+                        identifiers.add([identity: identifier.id, preferredURI: mappingService.makePrefLink(identifier.preferredUri)])
+                    } else {
+                        identifiers.add([identity: exists.id, preferredURI: mappingService.makePrefLink(exists.preferredUri)])
+                    }
+                } catch (ServiceException e) {
+                    errors.add(e.message)
+                }
+            }
+            render(contentType: 'application/json') {
+                [success: !identifiers.empty, identifiers: identifiers, errors: errors.join(', \n')]
+            }
+        } else {
+            render(contentType: 'application/json') { [success: false, error: 'Identities not found.'] }
         }
     }
 
