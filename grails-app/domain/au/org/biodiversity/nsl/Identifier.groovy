@@ -74,7 +74,7 @@ class Identifier {
     }
 
     String toUrn() {
-        if(versionNumber) {
+        if (versionNumber) {
             return "$objectType/$versionNumber/$idNumber"
         }
         return "$objectType/$nameSpace/$idNumber"

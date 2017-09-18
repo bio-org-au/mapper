@@ -16,27 +16,31 @@
 
 package au.org.biodiversity.nsl
 
+import grails.test.mixin.Mock
 import grails.test.mixin.TestFor
 import grails.test.mixin.TestMixin
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
+import grails.test.mixin.domain.DomainClassUnitTestMixin
 import org.apache.shiro.SecurityUtils
 import org.apache.shiro.subject.Subject
 import org.apache.shiro.util.ThreadContext
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionStatus
 import spock.lang.Specification
 
 /**
  * See the API for {@link grails.test.mixin.web.ControllerUnitTestMixin} for usage instructions
  */
 @TestFor(AdminController)
-@TestMixin(HibernateTestMixin)
-@Domain([Identifier, Match, Host])
+@TestMixin(DomainClassUnitTestMixin)
+@Mock([Identifier, Match, Host])
 class AdminControllerSpec extends Specification {
+
     MappingService mappingService
+    AdminService adminService
 
     def setup() {
 
-        def subject = [getPrincipal   : { "iamauser" },
+        def subject = [getPrincipal: { "iamauser" },
                        isAuthenticated: { true }
         ] as Subject
 
@@ -45,16 +49,14 @@ class AdminControllerSpec extends Specification {
 
         SecurityUtils.metaClass.static.getSubject = { subject }
 
-        Match.list().each { Match match ->
-            List<Host> h = new ArrayList<>(match.hosts)
-            h.each { match.removeFromHosts(it) }
-        }
-        Host.deleteAll(Host.list())
-        Identifier.deleteAll((Identifier.list()))
-        Match.deleteAll(Match.list())
         mappingService = new MappingService()
         mappingService.grailsApplication = [config: makeAConfig()]
         controller.mappingService = mappingService
+        adminService = new AdminService()
+        adminService.transactionManager = Mock(PlatformTransactionManager) {
+            getTransaction(_) >> Mock(TransactionStatus)
+        }
+        controller.adminService = adminService
     }
 
     def cleanup() {
@@ -62,6 +64,7 @@ class AdminControllerSpec extends Specification {
 
     void "test add host"() {
         when: "we try to add a host"
+        request.method = 'PUT'
         controller.addHost('id.biodiversity.org.au')
         println response.text
 
@@ -73,6 +76,7 @@ class AdminControllerSpec extends Specification {
         when: "we set it as preferred"
         response.reset()
         controller.setPreferredHost('id.biodiversity.org.au')
+        println response.text
 
         then: "the host is set as preferred"
         Host.list().first().preferred
@@ -102,8 +106,11 @@ class AdminControllerSpec extends Specification {
 
     void "test add Identifier"() {
         when: "we try to add a valid identifier it works"
+        request.method = 'PUT'
         controller.addHost('id.biodiversity.org.au')
+        response.reset()
         controller.addHost('biodiversity.org.au')
+        response.reset()
         controller.setPreferredHost('id.biodiversity.org.au')
         response.reset()
         controller.addIdentifier('apni', 'name', 12345, null)
@@ -142,7 +149,7 @@ class AdminControllerSpec extends Specification {
         println response.text
 
         then:
-        response.text.contains('Identity already exists.')
+        response.text.contains('Identity exists.')
 
         when: "we try to add an invalid identity if fails."
         response.reset()
@@ -181,6 +188,7 @@ class AdminControllerSpec extends Specification {
 
     void "test add URI"() {
         when: "we add a unique uri to an identifier it should work"
+        request.method = 'PUT'
         controller.addIdentifier('apni', 'name', 1, null)
 
         then:
@@ -232,13 +240,12 @@ class AdminControllerSpec extends Specification {
         m2.identifiers == null
 
         when:
+        request.method = 'PUT'
 
         controller.addIdentityToURI('apni', 'name', 23, null, 'one')
 
         println response.text
-        i1.refresh()
-        m1.refresh()
-        m2.refresh()
+        m2.refresh() // to fill in the null list
 
         then:
         response.text.contains('URI linked with identity.')
@@ -248,16 +255,13 @@ class AdminControllerSpec extends Specification {
         m1.identifiers?.first() == i1
         m2.identifiers?.empty
 
-        when:
+        when: "I add m2 'two' to i1"
         response.reset()
 
         controller.addIdentityToURI('apni', 'name', 23, null, 'two')
         println response.text
-        i1.refresh()
-        m1.refresh()
-        m2.refresh()
 
-        then:
+        then: 'Then m2 has one identifier and i1 has two matches'
         response.text.contains('URI linked with identity.')
         i1.identities?.size() == 2
         m1.identifiers.size() == 1
@@ -287,14 +291,12 @@ class AdminControllerSpec extends Specification {
 
         when: 'I remove i1 from m2'
         response.reset()
+        request.method = 'DELETE'
         String link = mappingService.makePrefLink(m2).encodeAsURL()
         println "removing $link"
         controller.removeIdentityFromURI('apni', 'name', 23, null, link)
 
         println response.text
-        i1.refresh()
-        m1.refresh()
-        m2.refresh()
 
         then:
         response.text.contains('Identity removed from URI.')
@@ -306,7 +308,35 @@ class AdminControllerSpec extends Specification {
 
     }
 
-        private static ConfigObject makeAConfig() {
+    void "test bulk add and remove"() {
+        when:
+        request.method = 'POST'
+        request.json = '{"identifiers": [{"nameSpace":"apni", "objectType":"tree", "idNumber": 12, "versionNumber": 123},' +
+                '{"nameSpace":"apni", "objectType":"tree", "idNumber": 13, "versionNumber": 123},' +
+                '{"nameSpace":"apni", "objectType":"tree", "idNumber": 14, "versionNumber": 123},' +
+                '{"nameSpace":"apni", "objectType":"tree", "idNumber": 15, "versionNumber": 123}]}'
+        controller.bulkAddIdentifiers()
+        println Identifier.list()
+        println Match.list()
+
+        then: 'we add 4 identifiers'
+        response.text.contains('"success":true')
+        Identifier.count() == 4
+        Match.count() == 4
+
+        when: 'We remove the identifiers'
+        response.reset()
+        controller.bulkRemoveIdentifiers()
+        println response.text
+
+        then: 'The added identifiers and matches are gone.'
+        response.text.contains('"success":true')
+        Identifier.count() == 0
+        Match.count() == 0
+    }
+
+
+    private static ConfigObject makeAConfig() {
         ConfigSlurper slurper = new ConfigSlurper('test')
         String configString = '''
 grails.serverURL = 'http://localhost:7070/nsl-mapper'

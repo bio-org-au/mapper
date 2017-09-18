@@ -23,8 +23,7 @@ import org.apache.shiro.authz.annotation.RequiresRoles
 import org.codehaus.groovy.grails.web.json.JSONObject
 import org.postgresql.PGConnection
 import org.postgresql.copy.CopyManager
-import org.springframework.validation.Errors
-import org.springframework.validation.FieldError
+
 import java.sql.Connection
 
 import static org.springframework.http.HttpStatus.NOT_FOUND
@@ -89,7 +88,7 @@ class AdminController {
         }
 
         try {
-            Identifier identifier = adminService.addIdentifier(identMap.nameSpace, identMap.objectType, identMap.idNumber, identMap.versionNumber)
+            Identifier identifier = adminService.addIdentifier(nameSpace, objectType, idNumber, versionNumber)
             render(contentType: 'application/json') {
                 [success: 'Identity saved with default uri.', identity: identifier.id, preferredURI: mappingService.makePrefLink(identifier.preferredUri)]
             }
@@ -107,12 +106,12 @@ class AdminController {
         if (data && data.containsKey('identifiers')) {
             List identifiers = []
             List<String> errors = []
-            List<Map> identities = data.identities
+            List<Map> identities = data.identifiers
             for (Map identMap in identities) {
                 try {
-                    Identifier exists = exists(identMap.nameSpace, identMap.objectType, identMap.idNumber, identMap.versionNumber)
+                    Identifier exists = exists(identMap.nameSpace as String, identMap.objectType as String, identMap.idNumber as Long, identMap.versionNumber as Long)
                     if (!exists) {
-                        Identifier identifier = adminService.addIdentifier(identMap.nameSpace, identMap.objectType, identMap.idNumber, identMap.versionNumber)
+                        Identifier identifier = adminService.addIdentifier(identMap.nameSpace as String, identMap.objectType as String, identMap.idNumber as Long, identMap.versionNumber as Long)
                         identifiers.add([identity: identifier.id, preferredURI: mappingService.makePrefLink(identifier.preferredUri)])
                     } else {
                         identifiers.add([identity: exists.id, preferredURI: mappingService.makePrefLink(exists.preferredUri)])
@@ -125,7 +124,40 @@ class AdminController {
                 [success: !identifiers.empty, identifiers: identifiers, errors: errors.join(', \n')]
             }
         } else {
-            render(contentType: 'application/json') { [success: false, error: 'Identities not found.'] }
+            render(contentType: 'application/json') { [success: false, error: 'identifiers not supplied.'] }
+        }
+    }
+
+    /**
+     * This permanently removes identifiers and their exclusive matches, only use for draft identifiers
+     * @return
+     */
+    @RequiresRoles('admin')
+    def bulkRemoveIdentifiers() {
+        log.debug("Bulk remove identifiers")
+        Map data = jsonObjectToMap(request.JSON as JSONObject)
+        if (data && data.containsKey('identifiers')) {
+            List<Map> removed = []
+            List<String> errors = []
+            List<Map> identities = data.identifiers
+            for (Map identMap in identities) {
+                try {
+                    Identifier identifier = exists(identMap.nameSpace as String, identMap.objectType as String, identMap.idNumber as Long, identMap.versionNumber as Long)
+                    if (identifier) {
+                        adminService.removeIdentifier(identifier)
+                        removed.add(identMap)
+                    } else {
+                        errors.add("Not found ${identMap}")
+                    }
+                } catch (ServiceException e) {
+                    errors.add(e.message)
+                }
+            }
+            render(contentType: 'application/json') {
+                [success: !removed.empty, removed: removed, errors: errors.join(', \n')]
+            }
+        } else {
+            render(contentType: 'application/json') { [success: false, error: 'identifiers not supplied.'] }
         }
     }
 
@@ -160,7 +192,9 @@ class AdminController {
 
     @RequiresRoles('admin')
     def setPreferredHost(String hostname) {
+        log.debug "Setting preferred host to $hostname"
         Host host = Host.findByHostName(hostname)
+
         if (!host) {
             render(contentType: 'application/json') { [error: "Host not found.", params: params] }
             return
@@ -168,6 +202,7 @@ class AdminController {
         if (!host.preferred) {
             Host prefHost = Host.findByPreferred(true)
             if (prefHost) {
+                log.debug "Unsetting current preferred host ${prefHost.hostName}"
                 prefHost.preferred = false
                 prefHost.save()
             }
@@ -188,6 +223,7 @@ class AdminController {
             }
             Match match = new Match(uri: uri)
             identifier.addToIdentities(match)
+            match.addToIdentifiers(identifier)
             identifier.save()
             Host host = Host.findByPreferred(true)
             if (host) {
@@ -207,6 +243,7 @@ class AdminController {
             Match m = Match.findByUri(uri)
             if (m) {
                 identifier.addToIdentities(m)
+                m.addToIdentifiers(identifier)
                 identifier.save()
                 render(contentType: 'application/json') { [success: 'URI linked with identity.', identity: identifier] }
                 return
@@ -221,13 +258,15 @@ class AdminController {
     def removeIdentityFromURI(String nameSpace, String objectType, Long idNumber, Long versionNumber, String uri) {
         Identifier identifier = exists(nameSpace, objectType, idNumber, versionNumber)
         if (identifier) {
-            String muri = mappingService.extractMatchStringFromResolverURI(uri.decodeURL())
+            String muri = mappingService.extractMatchStringFromResolverURI(uri.decodeURL() as String)
             Match m = identifier.identities.find { Match m ->
                 m.uri == muri
             }
             if (m) {
                 identifier.removeFromIdentities(m)
-                identifier.save()
+                m.removeFromIdentifiers(identifier)
+                m.save()
+                identifier.save(flush: true)
                 render(contentType: 'application/json') {
                     [success: 'Identity removed from URI.', identity: identifier]
                 }
@@ -251,8 +290,8 @@ class AdminController {
     @RequiresRoles('admin')
     def moveIdentityPost() {
         Map data = jsonObjectToMap(request.JSON as JSONObject)
-        Identifier from = exists(data.fromNameSpace, data.fromObjectType, data.fromIdNumber, data.fromVersionNumber)
-        Identifier to = exists(data.toNameSpace, data.toObjectType, data.toIdNumber, data.toVersionNumber)
+        Identifier from = exists(data.fromNameSpace as String, data.fromObjectType as String, data.fromIdNumber as Long, data.fromVersionNumber as Long)
+        Identifier to = exists(data.toNameSpace as String, data.toObjectType as String, data.toIdNumber as Long, data.toVersionNumber as Long)
         moveIdentityFromTo(from, to)
     }
 
@@ -337,12 +376,6 @@ order BY i.id_number) to STDOUT WITH CSV HEADER"""
 
     private static Identifier exists(String nameSpace, String objectType, Long idNumber, Long versionNumber) {
         Identifier.findByNameSpaceAndObjectTypeAndIdNumberAndVersionNumber(nameSpace, objectType, idNumber, versionNumber)
-    }
-
-    private static String buildErrorString(Errors errors) {
-        errors.fieldErrors.collect { FieldError e ->
-            "${e.field} cannot be ${e.rejectedValue}."
-        }.join(' ')
     }
 
     private static Map jsonObjectToMap(JSONObject object) {
