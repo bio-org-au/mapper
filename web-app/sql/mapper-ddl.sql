@@ -3,10 +3,10 @@
         drop constraint if exists FK_k2o53uoslf9gwqrd80cu2al4s;
 
     alter table if exists mapper.identifier_identities 
-        drop constraint if exists FK_mf2dsc2dxvsa9mlximsct7uau;
+        drop constraint if exists FK_ojfilkcwskdvvbggwsnachry2;
 
     alter table if exists mapper.identifier_identities 
-        drop constraint if exists FK_ojfilkcwskdvvbggwsnachry2;
+        drop constraint if exists FK_mf2dsc2dxvsa9mlximsct7uau;
 
     alter table if exists mapper.match_host 
         drop constraint if exists FK_3unhnjvw9xhs9l3ney6tvnioq;
@@ -60,8 +60,8 @@
     );
 
     create table mapper.identifier_identities (
-        identifier_id int8 not null,
         match_id int8 not null,
+        identifier_id int8 not null,
         primary key (identifier_id, match_id)
     );
 
@@ -84,6 +84,10 @@
 
     create index identifier_index on mapper.identifier (id_number, name_space, object_type);
 
+    create index identifier_version_index on mapper.identifier (id_number, name_space, object_type, version_number);
+
+    create index identifier_prefuri_index on mapper.identifier (preferred_uri_id);
+
     alter table if exists mapper.match 
         add constraint UK_2u4bey0rox6ubtvqevg3wasp9  unique (uri);
 
@@ -95,14 +99,14 @@
         references mapper.match;
 
     alter table if exists mapper.identifier_identities 
-        add constraint FK_mf2dsc2dxvsa9mlximsct7uau 
-        foreign key (match_id) 
-        references mapper.match;
-
-    alter table if exists mapper.identifier_identities 
         add constraint FK_ojfilkcwskdvvbggwsnachry2 
         foreign key (identifier_id) 
         references mapper.identifier;
+
+    alter table if exists mapper.identifier_identities 
+        add constraint FK_mf2dsc2dxvsa9mlximsct7uau 
+        foreign key (match_id) 
+        references mapper.match;
 
     alter table if exists mapper.match_host 
         add constraint FK_3unhnjvw9xhs9l3ney6tvnioq 

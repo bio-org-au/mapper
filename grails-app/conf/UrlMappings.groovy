@@ -19,11 +19,11 @@ class UrlMappings {
     static excludes = ["/metrics/*"]
 	static mappings = {
 
-        "/**"(controller: 'broker', action: 'index', method: "GET")
+        "/**"(controller: 'broker', action: 'index')
 
-        "/links/$nameSpace/$objectType/$idNumber"(controller: 'broker', action: 'links', method: "GET")
+        "/links/$nameSpace/$objectType/$idNumber"(controller: 'broker', action: 'links')
 
-        "/admin/moveIdentity"(controller: 'admin', action: 'moveIdentityPost', method: 'POST')
+        "/admin/moveIdentity"(controller: 'admin', action: 'moveIdentityPost')
 
         "/$controller/$action?/$id?(.$format)?"{
             constraints {

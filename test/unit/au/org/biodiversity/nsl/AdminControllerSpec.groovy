@@ -113,7 +113,7 @@ class AdminControllerSpec extends Specification {
         response.reset()
         controller.setPreferredHost('id.biodiversity.org.au')
         response.reset()
-        controller.addIdentifier('apni', 'name', 12345, null)
+        controller.addIdentifier('apni', 'name', 12345, null, null)
 
         println response.text
 
@@ -144,7 +144,7 @@ class AdminControllerSpec extends Specification {
 
         when: "we try to add the same identifier it fails"
         response.reset()
-        controller.addIdentifier('apni', 'name', 12345, null)
+        controller.addIdentifier('apni', 'name', 12345, null, null)
 
         println response.text
 
@@ -153,7 +153,7 @@ class AdminControllerSpec extends Specification {
 
         when: "we try to add an invalid identity if fails."
         response.reset()
-        controller.addIdentifier('apni', 'name', null, null)
+        controller.addIdentifier('apni', 'name', null, null, null)
 
         println response.text
 
@@ -163,7 +163,7 @@ class AdminControllerSpec extends Specification {
 
         when: "We can add a second valid Identifier."
         response.reset()
-        controller.addIdentifier('apni', 'name', 12346, null)
+        controller.addIdentifier('apni', 'name', 12346, null, null)
 
         println response.text
 
@@ -189,7 +189,7 @@ class AdminControllerSpec extends Specification {
     void "test add URI"() {
         when: "we add a unique uri to an identifier it should work"
         request.method = 'PUT'
-        controller.addIdentifier('apni', 'name', 1, null)
+        controller.addIdentifier('apni', 'name', 1, null, null)
 
         then:
         response.text.contains('Identity saved with default uri.')

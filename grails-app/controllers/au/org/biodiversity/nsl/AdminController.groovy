@@ -19,6 +19,7 @@ package au.org.biodiversity.nsl
 import grails.transaction.Transactional
 import groovy.sql.Sql
 import groovy.transform.Synchronized
+import org.apache.shiro.SecurityUtils
 import org.apache.shiro.authz.annotation.RequiresRoles
 import org.codehaus.groovy.grails.web.json.JSONObject
 import org.postgresql.PGConnection
@@ -76,8 +77,8 @@ class AdminController {
     }
 
     @RequiresRoles('admin')
-    def addIdentifier(String nameSpace, String objectType, Long idNumber, Long versionNumber) {
-        log.debug "Add identifier $nameSpace, $objectType, $idNumber, $versionNumber"
+    def addIdentifier(String nameSpace, String objectType, Long idNumber, Long versionNumber, String uri) {
+        log.debug "Add identifier $nameSpace, $objectType, $idNumber, $versionNumber -> $uri"
 
         Identifier exists = exists(nameSpace, objectType, idNumber, versionNumber)
         if (exists) {
@@ -87,8 +88,18 @@ class AdminController {
             return
         }
 
+        if (uri) {
+            Match match = Match.findByUri(uri)
+            if (match) {
+                render(contentType: 'application/json') {
+                    [success: false, error: "URI $uri already exists and is associated with identifiers: ${match.identifiers}", identifiers: match.identifiers]
+                }
+                return
+            }
+        }
+
         try {
-            Identifier identifier = adminService.addIdentifier(nameSpace, objectType, idNumber, versionNumber)
+            Identifier identifier = adminService.addIdentifier(nameSpace, objectType, idNumber, versionNumber, uri)
             render(contentType: 'application/json') {
                 [success: 'Identity saved with default uri.', identity: identifier.id, preferredURI: mappingService.makePrefLink(identifier.preferredUri)]
             }
@@ -104,27 +115,14 @@ class AdminController {
         log.debug "Bulk add identifiers"
         Map data = jsonObjectToMap(request.JSON as JSONObject)
         if (data && data.containsKey('identifiers')) {
-            List identifiers = []
-            List<String> errors = []
             List<Map> identities = data.identifiers
-            for (Map identMap in identities) {
-                try {
-                    Identifier exists = exists(identMap.nameSpace as String, identMap.objectType as String, identMap.idNumber as Long, identMap.versionNumber as Long)
-                    if (!exists) {
-                        Identifier identifier = adminService.addIdentifier(identMap.nameSpace as String, identMap.objectType as String, identMap.idNumber as Long, identMap.versionNumber as Long)
-                        identifiers.add([identity: identifier.id, preferredURI: mappingService.makePrefLink(identifier.preferredUri)])
-                    } else {
-                        identifiers.add([identity: exists.id, preferredURI: mappingService.makePrefLink(exists.preferredUri)])
-                    }
-                } catch (ServiceException e) {
-                    errors.add(e.message)
-                }
+            try {
+                String userName = SecurityUtils.subject.principal
+                adminService.bulkAddIdentifiers(identities, userName)
+                render(contentType: 'application/json') { [success: "${identities.size()} identities added."] }
+            } catch (e) {
+                render(contentType: 'application/json') { [success: false, error: e.message] }
             }
-            render(contentType: 'application/json') {
-                [success: !identifiers.empty, identifiers: identifiers, errors: errors.join(', \n')]
-            }
-        } else {
-            render(contentType: 'application/json') { [success: false, error: 'identifiers not supplied.'] }
         }
     }
 
@@ -137,27 +135,13 @@ class AdminController {
         log.debug("Bulk remove identifiers")
         Map data = jsonObjectToMap(request.JSON as JSONObject)
         if (data && data.containsKey('identifiers')) {
-            List<Map> removed = []
-            List<String> errors = []
             List<Map> identities = data.identifiers
-            for (Map identMap in identities) {
-                try {
-                    Identifier identifier = exists(identMap.nameSpace as String, identMap.objectType as String, identMap.idNumber as Long, identMap.versionNumber as Long)
-                    if (identifier) {
-                        adminService.removeIdentifier(identifier)
-                        removed.add(identMap)
-                    } else {
-                        errors.add("Not found ${identMap}")
-                    }
-                } catch (ServiceException e) {
-                    errors.add(e.message)
-                }
+            try {
+                adminService.bulkRemoveIdentifiers(identities)
+                render(contentType: 'application/json') { [success: "${identities.size()} identities removed."] }
+            } catch (e) {
+                render(contentType: 'application/json') { [success: false, error: e.message] }
             }
-            render(contentType: 'application/json') {
-                [success: !removed.empty, removed: removed, errors: errors.join(', \n')]
-            }
-        } else {
-            render(contentType: 'application/json') { [success: false, error: 'identifiers not supplied.'] }
         }
     }
 

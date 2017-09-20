@@ -30,7 +30,12 @@ class BrokerController {
 
     def mappingService
 
-    static allowedMethods = ['GET', 'POST']
+    static allowedMethods = [
+            index: ['GET', 'POST', 'PUT', 'DELETE'],
+            getCurrentIdentity: ['GET'],
+            links: ['GET'],
+            preferredLink: ['GET']
+    ]
 
     @Timed()
     def index() {

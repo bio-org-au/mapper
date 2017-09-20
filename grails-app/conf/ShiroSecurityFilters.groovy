@@ -24,7 +24,7 @@ import au.org.biodiversity.nsl.ApiKeyToken
  */
 class ShiroSecurityFilters {
     def filters = {
-        all(uri: "/**") {
+        all(uri: "/admin/**") {
             before = {
                 //if an apiKey is set then login with it
                 if(params.apiKey) {

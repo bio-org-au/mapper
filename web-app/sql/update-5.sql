@@ -8,5 +8,13 @@ ALTER TABLE mapper.identifier
 ALTER TABLE mapper.identifier
   ADD CONSTRAINT unique_name_space UNIQUE (version_number, id_number, object_type, name_space);
 
+CREATE INDEX identifier_version_index
+  ON mapper.identifier (id_number, name_space, object_type, version_number);
+
+CREATE INDEX identifier_prefuri_index
+  ON mapper.identifier (preferred_uri_id);
+
 -- version
-update mapper.db_version set version = 5 where id = 1;
+UPDATE mapper.db_version
+SET version = 5
+WHERE id = 1;

@@ -41,9 +41,11 @@ class Identifier {
 
         deleted defaultvalue: "false"
 
-        nameSpace index: 'identifier_index'
-        objectType index: 'identifier_index'
-        idNumber index: 'identifier_index'
+        nameSpace index: 'identifier_index,identifier_version_index'
+        objectType index: 'identifier_index,identifier_version_index'
+        idNumber index: 'identifier_index,identifier_version_index'
+        versionNumber index: 'identifier_version_index'
+        preferredUri index: 'identifier_prefuri_index'
         if (Environment.current != Environment.TEST) { // test uses H2 so it doesn't understand this
             updatedAt sqlType: 'timestamp with time zone'
         }
