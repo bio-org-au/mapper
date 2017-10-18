@@ -85,7 +85,7 @@ class BrokerController {
 
                 if (match.deprecated) {
                     //do a 301 to the preferred URI which will do a 303 to the resource
-                    response.status = 301
+                    response.status = request.method == 'GET' ? 301 : 307
                     //the preferred URI will be the default identifier URN e.g. name/apni/12345
                     String link = mappingService.makePrefLink(identifier)
                     if (api) {
@@ -96,8 +96,7 @@ class BrokerController {
                     response.setHeader("Location", link)
                     return [links: [link], requested: requested]
                 }
-
-                response.status = 303
+                response.status = request.method == 'GET' ? 303 : 307
                 response.setHeader("Cache-Control", "no-cache, must-revalidate")
                 String format = response.format
                 String link = mappingService.makeCurrentLink(identifier, format)
