@@ -14,12 +14,20 @@ class AdminService {
     DataSource dataSource
 
     private Host host
+    private List<Host> allHosts
 
     Host preferredHost() {
         if (!host) {
             host = Host.findByPreferred(true)
         }
         return host
+    }
+
+    private List<Host> hosts() {
+        if (!allHosts) {
+            allHosts = Host.list()
+        }
+        return allHosts
     }
 
     /**
@@ -123,19 +131,46 @@ DELETE FROM mapper.bulk_remove r WHERE exists(SELECT 1 FROM mapper.identifier i 
 ''')
         log.debug "Removing hosts"
         sql.execute('''
-DELETE FROM mapper.match_host mh using mapper.bulk_remove where mh.match_hosts_id = match_id;
+DELETE FROM mapper.match_host mh USING mapper.bulk_remove WHERE mh.match_hosts_id = match_id;
 ''')
         log.debug "Removing orphaned matches"
         sql.execute('''
-DELETE FROM mapper.match m using mapper.bulk_remove where m.id = match_id;
+DELETE FROM mapper.match m USING mapper.bulk_remove WHERE m.id = match_id;
         ''')
         log.debug "Dropping temp table."
         sql.execute('''
 TRUNCATE mapper.bulk_remove;
 DROP TABLE IF EXISTS mapper.bulk_remove;
 ''')
-        sql.commit()
         log.debug "Removed ${identifiers.size()} identifiers and orphaned matches."
+    }
+
+    @Synchronized
+    void bulkRemoveByUri(List<String> targets) {
+        String hostLessTargets = "'" + targets.collect { target ->
+            stripHost(target)
+        }.join("','") + "'"
+        log.debug hostLessTargets
+        Sql sql = Sql.newInstance(dataSource)
+        sql.withTransaction {
+            String query = """
+CREATE TEMP TABLE match_delete_ids ON COMMIT DROP AS
+  SELECT
+    m.id AS match_id,
+    i.id AS ident_id
+  FROM mapper.match m
+    JOIN mapper.identifier i ON m.id = i.preferred_uri_id
+  WHERE m.uri IN (${hostLessTargets})"""
+            sql.execute(query)
+            sql.execute('''            
+DELETE FROM mapper.match_host mh WHERE mh.match_hosts_id IN (SELECT match_id FROM match_delete_ids);
+DELETE FROM mapper.identifier_identities WHERE match_id IN (SELECT match_id FROM match_delete_ids);
+DELETE FROM mapper.identifier WHERE id IN (SELECT ident_id FROM match_delete_ids);
+DELETE FROM mapper.match WHERE id IN (SELECT match_id FROM match_delete_ids);
+''')
+            sql.commit()
+        }
+//        sql.execute "DROP TABLE IF EXISTS match_delete_ids"
     }
 
     /**
@@ -159,6 +194,12 @@ DROP TABLE IF EXISTS mapper.bulk_remove;
         identifier.preferredUri = null
         identifier.delete()
     }
+
+    private String stripHost(String uri) {
+        Host hostPart = hosts().find { uri.contains(it.hostName) }
+        uri.replaceFirst("^.*://${hostPart.hostName}/", '')
+    }
+
 
     private static String buildErrorString(Errors errors) {
         errors.fieldErrors.collect { FieldError e ->

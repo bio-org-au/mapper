@@ -34,7 +34,7 @@ class AdminServiceSpec extends Specification {
 
     void "test add and remove Identifier"() {
         when: 'I add an identifier'
-        Identifier identifier = service.addIdentifier('namespace','test', 123 as Long, 456 as Long)
+        Identifier identifier = service.addIdentifier('namespace','test', 123 as Long, 456 as Long, null)
 
         then: 'It works'
         identifier
@@ -60,8 +60,8 @@ class AdminServiceSpec extends Specification {
 
     void "test add and remove Identifier with two identifiers"() {
         when: 'I add an identifier'
-        Identifier identifier1 = service.addIdentifier('namespace','test', 123 as Long, 456 as Long)
-        Identifier identifier2 = service.addIdentifier('namespace','test', 789 as Long, 100 as Long)
+        Identifier identifier1 = service.addIdentifier('namespace','test', 123 as Long, 456 as Long, null)
+        Identifier identifier2 = service.addIdentifier('namespace','test', 789 as Long, 100 as Long, null)
 
         then: 'It works'
         identifier1

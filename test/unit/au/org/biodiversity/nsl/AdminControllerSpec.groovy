@@ -308,34 +308,6 @@ class AdminControllerSpec extends Specification {
 
     }
 
-    void "test bulk add and remove"() {
-        when:
-        request.method = 'POST'
-        request.json = '{"identifiers": [{"nameSpace":"apni", "objectType":"tree", "idNumber": 12, "versionNumber": 123},' +
-                '{"nameSpace":"apni", "objectType":"tree", "idNumber": 13, "versionNumber": 123},' +
-                '{"nameSpace":"apni", "objectType":"tree", "idNumber": 14, "versionNumber": 123},' +
-                '{"nameSpace":"apni", "objectType":"tree", "idNumber": 15, "versionNumber": 123}]}'
-        controller.bulkAddIdentifiers()
-        println Identifier.list()
-        println Match.list()
-
-        then: 'we add 4 identifiers'
-        response.text.contains('"success":true')
-        Identifier.count() == 4
-        Match.count() == 4
-
-        when: 'We remove the identifiers'
-        response.reset()
-        controller.bulkRemoveIdentifiers()
-        println response.text
-
-        then: 'The added identifiers and matches are gone.'
-        response.text.contains('"success":true')
-        Identifier.count() == 0
-        Match.count() == 0
-    }
-
-
     private static ConfigObject makeAConfig() {
         ConfigSlurper slurper = new ConfigSlurper('test')
         String configString = '''

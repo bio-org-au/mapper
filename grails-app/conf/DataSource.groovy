@@ -58,15 +58,32 @@ environments {
         }
     }
     test {
+        hibernate {
+            default_schema = 'mapper'
+        }
         dataSource {
+
             pooled = true
-            jmxExport = true
-            driverClassName = "org.h2.Driver"
-            username = "sa"
-            password = ""
-            dbCreate = "create"
-            dialect = "org.hibernate.dialect.H2Dialect"
-            url = "jdbc:h2:mem:mapperTestDb"
+            driverClassName = "org.postgresql.Driver"
+            username = "nsldev"
+            password = "nsldev"
+            dialect = "org.hibernate.dialect.PostgreSQLDialect"
+            url = "jdbc:postgresql://localhost:5432/nsl"
+            formatSql = false
+            logSql = false
+            //noinspection GroovyAssignabilityCheck
+            properties {
+                defaultTransactionIsolation = TRANSACTION_READ_UNCOMMITTED
+                initialSize = 2
+                maxActive = 5
+                minEvictableIdleTimeMillis = 1800000
+                timeBetweenEvictionRunsMillis = 1800000
+                numTestsPerEvictionRun = 3
+                testOnBorrow = true
+                testWhileIdle = true
+                testOnReturn = true
+                validationQuery = "SELECT 1"
+            }
         }
     }
     production {

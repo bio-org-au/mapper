@@ -145,6 +145,25 @@ class AdminController {
         }
     }
 
+    /**
+     * This permanently removes matches and their identifiers, only use for draft identifiers
+     * @return
+     */
+    @RequiresRoles('admin')
+    def bulkRemoveUris() {
+        log.debug("Bulk remove uris")
+        Map data = jsonObjectToMap(request.JSON as JSONObject)
+        if (data && data.containsKey('uris')) {
+            List<String> uris = data.uris
+            try {
+                adminService.bulkRemoveByUri(uris)
+                render(contentType: 'application/json') { [success: "${uris.size()} uris removed."] }
+            } catch (e) {
+                render(contentType: 'application/json') { [success: false, error: e.message] }
+            }
+        }
+    }
+
     @RequiresRoles('admin')
     @Synchronized
     def deleteIdentifier(String nameSpace, String objectType, Long idNumber, Long versionNumber, String reason) {
