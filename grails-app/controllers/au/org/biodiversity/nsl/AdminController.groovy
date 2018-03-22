@@ -105,7 +105,7 @@ class AdminController {
             }
         } catch (ServiceException e) {
             render(contentType: 'application/json') {
-                [error: 'Identity is not valid, see errors.', identity: identifier, errors: e.message]
+                [error: 'Identity is not valid, see errors.', errors: e.message]
             }
         }
     }

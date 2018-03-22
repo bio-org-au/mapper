@@ -31,10 +31,10 @@ class BrokerController {
     def mappingService
 
     static allowedMethods = [
-            index: ['GET', 'POST', 'PUT', 'DELETE'],
+            index             : ['GET', 'POST', 'PUT', 'DELETE'],
             getCurrentIdentity: ['GET'],
-            links: ['GET'],
-            preferredLink: ['GET']
+            links             : ['GET'],
+            preferredLink     : ['GET']
     ]
 
     @Timed()
@@ -201,6 +201,21 @@ class BrokerController {
             }
         }
         return notFound([error: "404: preferred link to $objectType/$nameSpace/$idNumber not found.", link: 'none'])
+    }
+
+    @Timed()
+    def preferredHost() {
+        Host prefHost = Host.findByPreferred(true)
+        log.info "Preferred host is $prefHost.hostName"
+        return withFormat {
+            html([host: prefHost.hostName])
+            json {
+                render(contentType: 'application/json') { [host: prefHost.hostName] }
+            }
+            xml {
+                render([host: prefHost.hostName] as XML)
+            }
+        }
     }
 
     private notFound(Map errorResponse) {
