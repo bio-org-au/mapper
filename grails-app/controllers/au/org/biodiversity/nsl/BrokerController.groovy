@@ -205,15 +205,15 @@ class BrokerController {
 
     @Timed()
     def preferredHost() {
-        Host prefHost = Host.findByPreferred(true)
-        log.info "Preferred host is $prefHost.hostName"
+        String hostLink = mappingService.makePrefHostLink()
+        log.info "Preferred host is $hostLink"
         return withFormat {
-            html([host: prefHost.hostName])
+            html([host: hostLink])
             json {
-                render(contentType: 'application/json') { [host: prefHost.hostName] }
+                render(contentType: 'application/json') { [host: hostLink] }
             }
             xml {
-                render([host: prefHost.hostName] as XML)
+                render([host: hostLink] as XML)
             }
         }
     }

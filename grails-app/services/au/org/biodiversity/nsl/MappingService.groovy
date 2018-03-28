@@ -83,6 +83,16 @@ class MappingService {
         return "$shardHostname/$serviceUri"
     }
 
+    String makePrefHostLink() {
+        Host host = getPreferredHost()
+        if (host) {
+            return "${defaultProtocol()}://${host.hostName}"
+        } else {
+            String resolverUrl = grailsApplication.config.mapper.resolverURL
+            return "${resolverUrl}"
+        }
+    }
+
     @Timed
     String makePrefLink(Match m) {
         Host host = getPreferredHost()
