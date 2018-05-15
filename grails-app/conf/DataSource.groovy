@@ -36,10 +36,11 @@ environments {
 
             pooled = true
             driverClassName = "org.postgresql.Driver"
-            username = "nsldev"
-            password = "nsldev"
+            username = "nsl"
+            password = "nsl"
             dialect = "org.hibernate.dialect.PostgreSQLDialect"
             url = "jdbc:postgresql://localhost:5432/nsl"
+//            url = "jdbc:postgresql://localhost:5432/dawr"
             formatSql = false
             logSql = false
             //noinspection GroovyAssignabilityCheck

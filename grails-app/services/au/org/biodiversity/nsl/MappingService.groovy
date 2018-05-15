@@ -213,11 +213,19 @@ class MappingService {
         return match
     }
 
+    /**
+     * This is used when a uri is a parameter and we need to remove the host prefix or resolverURL from the start of
+     * the url to get the match string to use, e.g. thing/namespace/12345. Services may use http: OR https: on the
+     * url depending on whim. This normally doesn't matter because a front end proxy will redirect to https, but as
+     * a parameter it may be either and both are valid.
+     * @param uri
+     * @return
+     */
     String extractMatchStringFromResolverURI(String uri) {
         if (uri.startsWith('http')) {
-            String resolverUrl = grailsApplication.config.mapper.resolverURL + '/'
-            return uri - resolverUrl
-        } else {
+            String resolverUrl = grailsApplication.config.mapper.resolverURL.replaceAll(/https?:/,'') + '/'
+            return uri.replaceAll(/https?:/,'') - resolverUrl
+        } else { //assume it's just the match
             return uri
         }
     }
