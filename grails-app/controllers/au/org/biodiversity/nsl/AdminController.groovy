@@ -22,10 +22,6 @@ import groovy.transform.Synchronized
 import org.apache.shiro.SecurityUtils
 import org.apache.shiro.authz.annotation.RequiresRoles
 import org.codehaus.groovy.grails.web.json.JSONObject
-import org.postgresql.PGConnection
-import org.postgresql.copy.CopyManager
-
-import java.sql.Connection
 
 import static org.springframework.http.HttpStatus.NOT_FOUND
 
@@ -344,37 +340,6 @@ class AdminController {
         } else {
             respond(status: NOT_FOUND)
         }
-    }
-
-    @RequiresRoles('admin')
-    def export() {
-
-        final Date date = new Date()
-        final String tempFileDir = grailsApplication.config.mapper.temp.file.directory
-        final String fileName = "mapper-export-${date.format('yyyy-MM-dd-mmss')}.csv"
-        final File outputFile = new File(tempFileDir, fileName)
-
-        final String query = """copy (SELECT
-  i.object_type,
-  i.name_space,
-  i.id_number,
-  h.host_name,
-  m.uri
-FROM mapper.identifier i
-  LEFT JOIN mapper.identifier_identities mi ON i.id = mi.identifier_id
-  LEFT JOIN mapper.match m ON mi.match_id = m.id
-  LEFT JOIN mapper.host_matches hm ON m.id = hm.match_id
-  LEFT JOIN mapper.host h ON hm.host_id = h.id
-order BY i.id_number) to STDOUT WITH CSV HEADER"""
-
-        Sql sql = getNSL()
-        Connection connection = sql.getConnection()
-        connection.setAutoCommit(false)
-        CopyManager copyManager = ((PGConnection) connection).getCopyAPI()
-        copyManager.copyOut(query, new FileWriter(outputFile))
-        sql.close()
-
-        render(file: outputFile, fileName: outputFile.name, contentType: 'text/csv')
     }
 
     private static Identifier exists(String nameSpace, String objectType, Long idNumber, Long versionNumber) {

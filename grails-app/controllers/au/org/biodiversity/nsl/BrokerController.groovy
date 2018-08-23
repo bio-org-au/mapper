@@ -145,7 +145,7 @@ class BrokerController {
     def getCurrentIdentity(String uri) {
 
         String requested = mappingService.extractMatchStringFromResolverURI(uri.decodeURL())
-
+        log.debug "Getting current identity for $requested"
         Match match = Match.findByUri(requested)
         if (match) {
             def currentIdentifiers = match.identifiers

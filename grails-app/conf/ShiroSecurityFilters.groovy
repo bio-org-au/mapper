@@ -39,7 +39,7 @@ class ShiroSecurityFilters {
                     }
                 }
                 // Ignore direct views (e.g. the default main index page).
-                if (!controllerName || controllerName =~ /(broker|asset|error)/) {
+                if (!controllerName || controllerName =~ /(broker|asset|error|export)/) {
                     return true
                 }
 
