@@ -32,7 +32,7 @@ class ExportController {
     static responseFormats = ['json']
 
     static allowedMethods = [
-            export               : ["GET"]
+            export: ["GET"]
     ]
 
     private Sql getNSL() {
@@ -53,7 +53,7 @@ class ExportController {
         log.debug "Export identifier sets for $type"
         List<String> objectTypes = Identifier.executeQuery("select distinct(objectType) from Identifier") as List<String>
         String where = ''
-        if(objectTypes.contains(type)){
+        if (objectTypes.contains(type)) {
             where = "where i.object_type = '$type'"
         } else {
             log.debug "Type $type unknown exporting all"
@@ -74,16 +74,22 @@ FROM mapper.identifier i
        ${where}
 group by i.id
 order BY i.name_space, i.object_type, i.id_number) to STDOUT WITH CSV HEADER"""
+        try {
+            log.debug query
+            Sql sql = getNSL()
+            Connection connection = sql.getConnection()
+            connection.setAutoCommit(false)
+            CopyManager copyManager = ((PGConnection) connection).getCopyAPI()
+            copyManager.copyOut(query, new FileWriter(outputFile))
+            sql.close()
 
-        log.debug query
-        Sql sql = getNSL()
-        Connection connection = sql.getConnection()
-        connection.setAutoCommit(false)
-        CopyManager copyManager = ((PGConnection) connection).getCopyAPI()
-        copyManager.copyOut(query, new FileWriter(outputFile))
-        sql.close()
-
-        render(file: outputFile, fileName: outputFile.name, contentType: 'text/csv')
+            render(file: outputFile, fileName: outputFile.name, contentType: 'text/csv')
+        } finally {
+            if(outputFile){
+                log.debug "deleting $outputFile.path"
+                outputFile.delete()
+            }
+        }
     }
 
 }
