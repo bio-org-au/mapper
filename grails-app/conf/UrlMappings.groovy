@@ -25,6 +25,8 @@ class UrlMappings {
 
         "/admin/moveIdentity"(controller: 'admin', action: 'moveIdentityPost')
 
+        "/robots.txt" (view: "/robots")
+
         "/$controller/$action?/$id?(.$format)?"{
             constraints {
                 // apply constraints here
