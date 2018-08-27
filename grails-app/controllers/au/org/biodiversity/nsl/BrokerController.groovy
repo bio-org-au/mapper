@@ -23,8 +23,7 @@ import org.springframework.http.HttpStatus
 
 import java.util.regex.Matcher
 
-import static org.springframework.http.HttpStatus.GONE
-import static org.springframework.http.HttpStatus.NOT_FOUND
+import static org.springframework.http.HttpStatus.*
 
 class BrokerController {
 
@@ -39,6 +38,15 @@ class BrokerController {
 
     @Timed()
     def index() {
+        String xForwardedFor = request.getHeader('X-Forwarded-For')
+
+        if (xForwardedFor && (xForwardedFor in ['82.22.252.167', '94.130.219.231'] || xForwardedFor.startsWith('46.229.168'))) {
+            response.status = 403
+            String message = "Sorry, but you've exceeded our service limits."
+            JsonErrorResponse jsonErrorResponse = new JsonErrorResponse(message: message, status: FORBIDDEN)
+            return respond(jsonErrorResponse, [view: '/common/403', model: [message: message], status: FORBIDDEN])
+        }
+
         String requested = (WebUtils.getForwardURI(request) ?: request.getAttribute('javax.servlet.error.request_uri'))
         requested = requested.decodeURL()
         if (request.queryString) {
