@@ -27,6 +27,8 @@ class UrlMappings {
 
         "/robots.txt" (view: "/robots")
 
+        "/**/robots.txt" (view: "/robots")
+
         "/$controller/$action?/$id?(.$format)?"{
             constraints {
                 // apply constraints here
