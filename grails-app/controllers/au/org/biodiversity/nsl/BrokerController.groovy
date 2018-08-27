@@ -39,7 +39,7 @@ class BrokerController {
     @Timed()
     def index() {
         String xForwardedFor = request.getHeader('X-Forwarded-For')
-
+        log.debug "Forwarded for $xForwardedFor"
         if (xForwardedFor && (xForwardedFor in ['82.22.252.167', '94.130.219.231'] || xForwardedFor.startsWith('46.229.168'))) {
             response.status = 403
             String message = "Sorry, but you've exceeded our service limits."
