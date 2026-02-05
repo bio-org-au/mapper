@@ -553,8 +553,20 @@ class MappingServiceImpl implements MappingService {
         Boolean success = false
         withSql { Sql sql ->
             sql.withTransaction {
-                sql.executeUpdate('''update mapper.identifier_identities ii set identifier_id = :toId where identifier_id = :fromId''',
-                        [toId: to.id, fromId: from.id])
+                // 1. Delete records for 'from' that already exist for 'to' to prevent unique constraint violations
+                sql.executeUpdate('''
+                DELETE FROM mapper.identifier_identities 
+                WHERE identifier_id = :fromId 
+                AND match_id IN (
+                    SELECT match_id FROM mapper.identifier_identities WHERE identifier_id = :toId
+                )
+            ''', [fromId: from.id, toId: to.id])
+                // 2. Now update the remaining records that don't have a match_id conflict
+                sql.executeUpdate('''
+                UPDATE mapper.identifier_identities 
+                SET identifier_id = :toId 
+                WHERE identifier_id = :fromId
+            ''', [toId: to.id, fromId: from.id])
                 success = true
             }
         }

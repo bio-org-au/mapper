@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dropdb --if-exists nsl-test &&
-createdb nsl-test &&
-psql -f ddl.sql nsl-test &&
-psql -f test-data.sql nsl-test
+dropdb -U nsl --if-exists nsl-test &&
+createdb -U nsl nsl-test &&
+psql -U nsl -f ddl.sql nsl-test &&
+psql -U nsl -f test-data.sql nsl-test
