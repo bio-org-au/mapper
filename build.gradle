@@ -59,6 +59,10 @@ tasks.withType(GroovyCompile) {
     groovyOptions.forkOptions.jvmArgs.add('-Dgroovy.parameters=true')
 }
 
+war {
+    archiveFileName = 'nsl#mapper.war'
+}
+
 shadowJar {
     mergeServiceFiles()
 }
